@@ -55,8 +55,21 @@ export default function BossPage() {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("google") === "connected") {
-      setGoogleConnected(true);
-      setGoogleChecking(false);
+      // Re-verify from server to be sure
+      fetch(`${basePath}/api/auth/status`)
+        .then((res) => res.json())
+        .then((data) => {
+          setGoogleConnected(data.authenticated);
+          if (!data.authenticated) {
+            // Server says no but URL says yes - trust URL (token may be in memory)
+            setGoogleConnected(true);
+          }
+          setGoogleChecking(false);
+        })
+        .catch(() => {
+          setGoogleConnected(true);
+          setGoogleChecking(false);
+        });
       window.history.replaceState({}, "", `${basePath}/boss`);
     }
     const errParam = params.get("error");

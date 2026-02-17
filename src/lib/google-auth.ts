@@ -2,7 +2,6 @@ import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
 
-// Use /tmp for Railway compatibility (always writable)
 const TOKEN_PATH = process.env.NODE_ENV === "production"
   ? "/tmp/.google-tokens.json"
   : path.join(process.cwd(), ".google-tokens.json");
@@ -23,21 +22,34 @@ interface StoredTokens {
   expiry_date?: number;
 }
 
+// In-memory cache + file backup (both needed for Railway)
+let memoryTokens: StoredTokens | null = null;
+
 function readTokens(): StoredTokens | null {
+  if (memoryTokens) return memoryTokens;
   try {
     if (fs.existsSync(TOKEN_PATH)) {
       const data = fs.readFileSync(TOKEN_PATH, "utf-8");
-      return JSON.parse(data);
+      memoryTokens = JSON.parse(data);
+      return memoryTokens;
     }
-  } catch {}
+  } catch (e) {
+    console.error("readTokens error:", e);
+  }
   return null;
 }
 
 function writeTokens(tokens: StoredTokens) {
-  fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
+  memoryTokens = tokens;
+  try {
+    fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
+  } catch (e) {
+    console.error("writeTokens file error (using memory only):", e);
+  }
 }
 
 function deleteTokens() {
+  memoryTokens = null;
   try {
     if (fs.existsSync(TOKEN_PATH)) {
       fs.unlinkSync(TOKEN_PATH);
@@ -62,7 +74,9 @@ export function getOAuth2Client() {
 }
 
 export async function handleCallback(code: string) {
+  console.log("handleCallback: exchanging code for tokens...");
   const { tokens } = await oauth2Client.getToken(code);
+  console.log("handleCallback: got tokens, access_token:", !!tokens.access_token, "refresh_token:", !!tokens.refresh_token);
   oauth2Client.setCredentials(tokens);
 
   const existing = readTokens();
@@ -72,6 +86,7 @@ export async function handleCallback(code: string) {
     expiry_date: tokens.expiry_date ?? undefined,
   };
   writeTokens(stored);
+  console.log("handleCallback: tokens saved, isAuthenticated:", isAuthenticated());
   return tokens;
 }
 
@@ -92,7 +107,6 @@ export async function createGoogleMeet(): Promise<string> {
 
   oauth2Client.setCredentials(storedTokens);
 
-  // Refresh token if expired
   if (storedTokens.expiry_date && storedTokens.expiry_date < Date.now()) {
     const { credentials } = await oauth2Client.refreshAccessToken();
     const refreshed: StoredTokens = {
