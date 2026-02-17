@@ -57,11 +57,12 @@ export default function BossPage() {
     if (params.get("google") === "connected") {
       setGoogleConnected(true);
       setGoogleChecking(false);
-      window.history.replaceState({}, "", "/boss");
+      window.history.replaceState({}, "", `${basePath}/boss`);
     }
-    if (params.get("error")) {
-      setMeetError("Google bağlantısı başarısız. Tekrar deneyin.");
-      window.history.replaceState({}, "", "/boss");
+    const errParam = params.get("error");
+    if (errParam) {
+      setMeetError(`Google bağlantı hatası: ${decodeURIComponent(errParam)}`);
+      window.history.replaceState({}, "", `${basePath}/boss`);
     }
   }, []);
 

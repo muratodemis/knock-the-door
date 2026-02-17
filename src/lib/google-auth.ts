@@ -2,7 +2,10 @@ import { google } from "googleapis";
 import fs from "fs";
 import path from "path";
 
-const TOKEN_PATH = path.join(process.cwd(), ".google-tokens.json");
+// Use /tmp for Railway compatibility (always writable)
+const TOKEN_PATH = process.env.NODE_ENV === "production"
+  ? "/tmp/.google-tokens.json"
+  : path.join(process.cwd(), ".google-tokens.json");
 
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
