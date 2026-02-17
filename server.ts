@@ -7,7 +7,7 @@ const dev = process.env.NODE_ENV !== "production";
 const hostname = "localhost";
 const port = parseInt(process.env.PORT || "3012", 10);
 
-const basePath = process.env.BASE_PATH || "";
+const basePath = process.env.NODE_ENV === "production" ? "/knock" : "";
 
 const app = next({ dev, hostname, port });
 const handle = app.getRequestHandler();
