@@ -7,10 +7,14 @@ const TOKEN_PATH = process.env.NODE_ENV === "production"
   ? "/tmp/.google-tokens.json"
   : path.join(process.cwd(), ".google-tokens.json");
 
+const redirectUri = process.env.NODE_ENV === "production"
+  ? "https://murat.org/knock/api/auth/callback"
+  : "http://localhost:3012/api/auth/callback";
+
 const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  process.env.GOOGLE_REDIRECT_URI
+  redirectUri
 );
 
 interface StoredTokens {
