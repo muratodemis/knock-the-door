@@ -8,12 +8,17 @@
     "start": "NODE_ENV=production ts-node --project tsconfig.server.json server.ts"
   },
   "dependencies": {
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
     "googleapis": "^171.4.0",
+    "lucide-react": "^0.574.0",
     "next": "^14.2.0",
     "react": "^18.3.0",
     "react-dom": "^18.3.0",
     "socket.io": "^4.7.0",
     "socket.io-client": "^4.7.0",
+    "tailwind-merge": "^3.4.1",
+    "tailwindcss-animate": "^1.0.7",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

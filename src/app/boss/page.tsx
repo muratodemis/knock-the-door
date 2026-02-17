@@ -2,6 +2,21 @@
 
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getSocket } from "@/lib/socket";
+import {
+  Video,
+  X,
+  Send,
+  AlertTriangle,
+  Check,
+  Loader2,
+  ArrowLeft,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface KnockRequest {
   id: string;
@@ -24,23 +39,16 @@ export default function BossPage() {
   const [status, setStatus] = useState<BossStatus>("available");
   const [knocks, setKnocks] = useState<KnockRequest[]>([]);
   const [connected, setConnected] = useState(false);
-  const [knockAnimation, setKnockAnimation] = useState(false);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
 
-  // Google auth state
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleChecking, setGoogleChecking] = useState(true);
-
-  // Track which knock is being processed
   const [processingKnockId, setProcessingKnockId] = useState<string | null>(null);
   const [meetError, setMeetError] = useState<string | null>(null);
 
-  // Chat state: messages per knockId
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
   const [chatInputs, setChatInputs] = useState<Record<string, string>>({});
   const chatEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
-  // Check Google auth status on mount
   useEffect(() => {
     fetch(`${basePath}/api/auth/status`)
       .then((res) => res.json())
@@ -51,19 +59,14 @@ export default function BossPage() {
       .catch(() => setGoogleChecking(false));
   }, []);
 
-  // Re-check after redirect from Google OAuth
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("google") === "connected") {
-      // Re-verify from server to be sure
       fetch(`${basePath}/api/auth/status`)
         .then((res) => res.json())
         .then((data) => {
           setGoogleConnected(data.authenticated);
-          if (!data.authenticated) {
-            // Server says no but URL says yes - trust URL (token may be in memory)
-            setGoogleConnected(true);
-          }
+          if (!data.authenticated) setGoogleConnected(true);
           setGoogleChecking(false);
         })
         .catch(() => {
@@ -74,7 +77,7 @@ export default function BossPage() {
     }
     const errParam = params.get("error");
     if (errParam) {
-      setMeetError(`Google bağlantı hatası: ${decodeURIComponent(errParam)}`);
+      setMeetError(`Google baglanti hatasi: ${decodeURIComponent(errParam)}`);
       window.history.replaceState({}, "", `${basePath}/boss`);
     }
   }, []);
@@ -87,19 +90,13 @@ export default function BossPage() {
       socket.emit("boss-join");
     });
 
-    socket.on("disconnect", () => {
-      setConnected(false);
-    });
+    socket.on("disconnect", () => setConnected(false));
 
     socket.on("knock-received", (knock: KnockRequest) => {
       setKnocks((prev) => {
         if (prev.find((k) => k.id === knock.id)) return prev;
         return [...prev, knock];
       });
-      setKnockAnimation(true);
-      setTimeout(() => setKnockAnimation(false), 600);
-
-      // Play knock sound
       try {
         const audio = new Audio("data:audio/wav;base64,UklGRlQFAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YTAFAACAgICAgICAgICAgICAgICAgICA/4CAgH+AgIB/gICAf4CAgH+AgIB/f3+Af39/f35+fn59fX19fHx8fHt7e3t6enp6eXl5eXh4eHh3d3d3dnZ2dnV1dXV0dHR0c3NzcnJycnFxcXBwcHBvb29ubm5tbW1sbGxra2tqamppaWloaGhnZ2dmZmZlZWVkZGRjY2NiYmJhYWFgYGBfX19fXl5eXl5eXl5fX19fYGBgYWFhYmJiY2NjZGRkZWVlZmZmZ2dnaGhoaWlpampqa2trbGxsbW1tbm5ub29vcHBwcXFxcnJyc3Nzc3R0dHV1dXZ2dnd3d3h4eHl5eXp6ent7e3x8fH19fX5+fn9/f4CAgIGBgYKCgoODg4SEhIWFhYaGhoeHh4iIiImJiYqKiouLi4yMjI2NjY6Ojo+Pj5CQkJGRkZKSkpOTk5SUlJWVlZaWlpeXl5iYmJmZmZqampubm5ycnJ2dnZ6enp+fn6CgoKGhoaKioqOjo6SkpKWlpaampqenp6ioqKmpqaqqqqurq6ysrK2tra6urq+vr7CwsLGxsbKysrOzs7S0tLW1tba2tre3t7i4uLm5ubq6uru7u7y8vL29vb6+vr+/v8DAwMHBwcLCwsPDw8TExMXFxcbGxsfHx8jIyMnJycrKysvLy8zMzM3Nzc7Ozs/Pz9DQ0NHR0dLS0tPT09TU1NXV1dbW1tfX19jY2NnZ2dra2tvb29zc3N3d3d7e3t/f3+Dg4OHh4eLi4uPj4+Tk5OXl5ebm5ufn5+jo6Onp6erq6uvr6+zs7O3t7e7u7u/v7/Dw8PHx8fLy8vPz8/T09PX19fb29vf39/j4+Pn5+fr6+vv7+/z8/P39/f7+/v///wAAAA==");
         audio.volume = 0.5;
@@ -142,16 +139,10 @@ export default function BossPage() {
   const openDoor = useCallback(async (knockId: string) => {
     setProcessingKnockId(knockId);
     setMeetError(null);
-
     try {
       const res = await fetch(`${basePath}/api/create-meet`, { method: "POST" });
       const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.error || "Toplantı oluşturulamadı");
-      }
-
-      // Send the real meet link via socket
+      if (!res.ok) throw new Error(data.error || "Toplanti olusturulamadi");
       getSocket().emit("open-door", { knockId, meetLink: data.meetLink });
     } catch (err: any) {
       setMeetError(err.message);
@@ -176,7 +167,6 @@ export default function BossPage() {
     setChatInputs((prev) => ({ ...prev, [knockId]: "" }));
   }, [chatInputs]);
 
-  // Auto-scroll chat to bottom on new messages
   useEffect(() => {
     Object.keys(chatMessages).forEach((knockId) => {
       chatEndRefs.current[knockId]?.scrollIntoView({ behavior: "smooth" });
@@ -191,280 +181,253 @@ export default function BossPage() {
   };
 
   const statusConfig = {
-    available: { label: "Müsait", color: "bg-green-500", glow: "status-glow-available", icon: "🟢" },
-    busy: { label: "Meşgul", color: "bg-red-500", glow: "status-glow-busy", icon: "🔴" },
-    away: { label: "Uzakta", color: "bg-yellow-500", glow: "status-glow-away", icon: "🟡" },
+    available: { label: "Musait", variant: "success" as const, dotColor: "bg-emerald-500" },
+    busy: { label: "Mesgul", variant: "destructive" as const, dotColor: "bg-red-500" },
+    away: { label: "Uzakta", variant: "warning" as const, dotColor: "bg-amber-500" },
   };
 
   return (
-    <div className="min-h-screen p-6 md:p-10">
-      {/* Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-purple-500/5 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative z-10 max-w-4xl mx-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between mb-10">
-          <div>
-            <h1 className="text-3xl font-bold gradient-text">Yönetici Paneli</h1>
-            <p className="text-slate-400 mt-1">Sanal ofisinizi yönetin</p>
+    <div className="min-h-screen bg-background">
+      {/* Top nav */}
+      <nav className="border-b border-border sticky top-0 bg-background/80 backdrop-blur-sm z-50">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div className="h-5 w-px bg-border flex-shrink-0" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-6 h-6 rounded-md bg-foreground flex items-center justify-center flex-shrink-0">
+                <svg className="w-3.5 h-3.5 text-background" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </div>
+              <span className="font-semibold text-sm text-foreground truncate">Yonetici</span>
+            </div>
           </div>
-          <div className="flex items-center gap-4">
-            {/* Google connection status */}
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
             {!googleChecking && (
               googleConnected ? (
-                <div className="flex items-center gap-2 px-3 py-1.5 bg-green-500/10 border border-green-500/20 rounded-lg">
-                  <svg className="w-4 h-4 text-green-400" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" />
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" />
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" />
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" />
-                  </svg>
-                  <span className="text-xs text-green-400 font-medium">Google Bağlı</span>
-                </div>
+                <Badge variant="success" className="gap-1 text-[11px] px-2 py-0.5 hidden sm:inline-flex">
+                  <Check className="w-3 h-3" />
+                  Google
+                </Badge>
               ) : (
-                <a
-                  href={`${basePath}/api/auth/google`}
-                  className="flex items-center gap-2 px-4 py-2 bg-white text-gray-700 rounded-lg font-medium text-sm transition-all hover:shadow-lg hover:scale-105 border border-gray-200"
-                >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
-                  </svg>
-                  Google ile Bağlan
+                <a href={`${basePath}/api/auth/google`}>
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs h-8 px-2.5">
+                    <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="none">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 01-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4" />
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05" />
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                    </svg>
+                    <span className="hidden sm:inline">Baglan</span>
+                  </Button>
                 </a>
               )
             )}
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
-              <span className="text-sm text-slate-400">
-                {connected ? "Bağlı" : "Bağlantı kesildi"}
+            <div className="flex items-center gap-1.5">
+              <div className={cn("w-2 h-2 rounded-full", connected ? "bg-emerald-500" : "bg-red-500")} />
+              <span className="text-xs text-muted-foreground hidden sm:inline">
+                {connected ? "Bagli" : "Kesildi"}
               </span>
             </div>
           </div>
         </div>
+      </nav>
 
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Google not connected warning */}
         {!googleChecking && !googleConnected && (
-          <div className="glass-card rounded-2xl p-5 mb-8 border border-yellow-500/20 bg-yellow-500/5">
-            <div className="flex items-start gap-3">
-              <svg className="w-6 h-6 text-yellow-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-              </svg>
-              <div>
-                <h3 className="font-semibold text-yellow-300">Google Hesabı Bağlı Değil</h3>
-                <p className="text-sm text-slate-400 mt-1">
-                  Kapıyı açtığınızda otomatik Google Meet toplantısı oluşturabilmek için Google hesabınızı bağlamanız gerekiyor.
-                  Sağ üstteki &quot;Google ile Bağlan&quot; butonuna tıklayın.
+          <Card className="mb-4 sm:mb-6 border-amber-200 bg-amber-50/50">
+            <CardContent className="p-3 sm:p-4 flex items-start gap-3">
+              <AlertTriangle className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" />
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-amber-900">Google Hesabi Bagli Degil</p>
+                <p className="text-xs text-amber-700 mt-0.5">
+                  Otomatik Google Meet olusturmak icin hesabinizi baglayin.
                 </p>
               </div>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Meet error */}
         {meetError && (
-          <div className="glass-card rounded-2xl p-4 mb-8 border border-red-500/20 bg-red-500/5">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-red-400">
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                <span className="text-sm">{meetError}</span>
+          <Card className="mb-4 sm:mb-6 border-red-200 bg-red-50/50">
+            <CardContent className="p-3 sm:p-4 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2 text-red-700 min-w-0">
+                <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+                <span className="text-sm truncate">{meetError}</span>
               </div>
-              <button onClick={() => setMeetError(null)} className="text-slate-400 hover:text-white">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
+              <button onClick={() => setMeetError(null)} className="text-red-400 hover:text-red-600 flex-shrink-0">
+                <X className="w-4 h-4" />
               </button>
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Status Control */}
-        <div className={`glass-card rounded-2xl p-6 mb-8 ${statusConfig[status].glow} transition-shadow duration-500`}>
-          <h2 className="text-lg font-semibold mb-4 text-slate-300">Kapı Durumu</h2>
-          <div className="flex flex-wrap gap-3">
-            {(["available", "busy", "away"] as BossStatus[]).map((s) => (
-              <button
-                key={s}
-                onClick={() => changeStatus(s)}
-                className={`px-6 py-3 rounded-xl font-medium transition-all ${
-                  status === s
-                    ? `${statusConfig[s].color} text-white shadow-lg scale-105`
-                    : "bg-slate-700/50 text-slate-300 hover:bg-slate-600/50"
-                }`}
-              >
-                <span className="mr-2">{statusConfig[s].icon}</span>
-                {statusConfig[s].label}
-              </button>
-            ))}
-          </div>
-          <p className="mt-4 text-sm text-slate-400">
-            {status === "available" && "Çalışanlar kapınızı çalabilir. Görüşme taleplerine açıksınız."}
-            {status === "busy" && "Çalışanlar meşgul olduğunuzu görecek, ancak acil durumlar için kapıyı çalabilirler."}
-            {status === "away" && "Çalışanlar uzakta olduğunuzu görecek. Kapı çalma devre dışı."}
-          </p>
-        </div>
-
-        {/* Door visualization */}
-        <div className={`glass-card rounded-2xl p-8 mb-8 ${knockAnimation ? "knock-shake" : ""}`}>
-          <div className="flex items-center justify-center">
-            <div className="relative">
-              {/* Door frame */}
-              <div className="w-48 h-64 bg-gradient-to-b from-amber-800 to-amber-950 rounded-t-xl relative shadow-2xl border-4 border-amber-700/50">
-                {/* Door panels */}
-                <div className="absolute top-4 left-4 right-4 h-24 border-2 border-amber-600/20 rounded-sm" />
-                <div className="absolute bottom-4 left-4 right-4 h-24 border-2 border-amber-600/20 rounded-sm" />
-                {/* Door knob */}
-                <div className="absolute right-5 top-1/2 -translate-y-1/2">
-                  <div className="w-5 h-5 bg-yellow-400 rounded-full shadow-lg" />
-                  <div className="w-3 h-6 bg-yellow-500/80 rounded-b-sm mx-auto -mt-1" />
-                </div>
-                {/* Status sign */}
-                <div className={`absolute top-3 left-1/2 -translate-x-1/2 px-4 py-1 rounded-md text-xs font-bold ${
-                  status === "available" ? "bg-green-500 text-white" :
-                  status === "busy" ? "bg-red-500 text-white" :
-                  "bg-yellow-500 text-black"
-                }`}>
-                  {statusConfig[status].label}
-                </div>
-              </div>
-              {/* Floor */}
-              <div className="w-56 h-2 bg-slate-700 rounded-b-lg -ml-4" />
-
-              {/* Knock notification badge */}
-              {knocks.length > 0 && (
-                <div className="absolute -top-3 -right-3 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm animate-bounce">
-                  {knocks.length}
-                </div>
-              )}
+        <Card className="mb-4 sm:mb-6">
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between mb-3 sm:mb-4">
+              <h2 className="text-sm font-medium text-foreground">Kapi Durumu</h2>
+              <Badge variant={statusConfig[status].variant}>
+                <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", statusConfig[status].dotColor)} />
+                {statusConfig[status].label}
+              </Badge>
             </div>
-          </div>
-
-          {knocks.length === 0 && (
-            <p className="text-center mt-6 text-slate-400">
-              Henüz kimse kapıyı çalmadı. Beklemede...
+            <div className="grid grid-cols-3 gap-2">
+              {(["available", "busy", "away"] as BossStatus[]).map((s) => (
+                <Button
+                  key={s}
+                  variant={status === s ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => changeStatus(s)}
+                  className={cn(
+                    "text-xs sm:text-sm",
+                    status === s && s === "available" && "bg-emerald-600 hover:bg-emerald-700",
+                    status === s && s === "busy" && "bg-red-500 hover:bg-red-600",
+                    status === s && s === "away" && "bg-amber-500 hover:bg-amber-600",
+                  )}
+                >
+                  {statusConfig[s].label}
+                </Button>
+              ))}
+            </div>
+            <p className="mt-3 text-xs text-muted-foreground">
+              {status === "available" && "Calisanlar kapinizi calabilir."}
+              {status === "busy" && "Mesgul gorunuyorsunuz, acil durumlar icin kapi acik."}
+              {status === "away" && "Uzaktasiniz. Kapi calma devre disi."}
             </p>
-          )}
-        </div>
+          </CardContent>
+        </Card>
 
         {/* Knock Requests */}
-        {knocks.length > 0 && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-slate-200">
-              Kapıyı Çalanlar ({knocks.length})
-            </h2>
+        {knocks.length === 0 ? (
+          <Card>
+            <CardContent className="p-8 sm:p-12 text-center">
+              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
+                <svg className="w-6 h-6 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                  <path d="M13.73 21a2 2 0 01-3.46 0" />
+                </svg>
+              </div>
+              <p className="text-sm font-medium text-foreground mb-1">Henuz kimse kapiyi calmadi</p>
+              <p className="text-xs text-muted-foreground">Yeni bildirimler burada gorunecek</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-medium text-foreground">Bekleyen Talepler</h2>
+              <Badge variant="secondary">{knocks.length}</Badge>
+            </div>
+
             {knocks.map((knock) => (
-              <div
-                key={knock.id}
-                className="glass-card rounded-xl p-5 animate-[slideIn_0.3s_ease-out]"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold">
+              <Card key={knock.id} className="overflow-hidden">
+                <CardContent className="p-0">
+                  {/* Knock header */}
+                  <div className="p-3 sm:p-4">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="w-9 h-9 rounded-full bg-secondary text-foreground flex items-center justify-center text-sm font-semibold flex-shrink-0">
                         {knock.employeeName.charAt(0).toUpperCase()}
                       </div>
-                      <div>
-                        <h3 className="font-semibold text-white">{knock.employeeName}</h3>
-                        <p className="text-sm text-slate-400">{formatTime(knock.timestamp)}</p>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="text-sm font-medium text-foreground truncate">{knock.employeeName}</h3>
+                        <p className="text-xs text-muted-foreground">{formatTime(knock.timestamp)}</p>
                       </div>
                     </div>
+
                     {knock.message && (
-                      <p className="mt-3 text-slate-300 bg-slate-700/50 rounded-lg p-3 text-sm">
-                        &quot;{knock.message}&quot;
+                      <p className="text-sm text-muted-foreground bg-secondary rounded-lg px-3 py-2 mb-3">
+                        {knock.message}
                       </p>
                     )}
-                  </div>
 
-                  <div className="flex gap-2 ml-4 flex-shrink-0">
-                    {processingKnockId === knock.id ? (
-                      <div className="flex items-center gap-2 px-5 py-2.5 text-blue-300">
-                        <svg className="w-5 h-5 animate-spin" fill="none" viewBox="0 0 24 24">
-                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                        </svg>
-                        <span className="text-sm font-medium">Toplantı oluşturuluyor...</span>
-                      </div>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => openDoor(knock.id)}
-                          disabled={!googleConnected || processingKnockId !== null}
-                          className="px-5 py-2.5 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg font-medium transition-all hover:scale-105 hover:shadow-lg hover:shadow-green-500/25 disabled:opacity-40 disabled:hover:scale-100 flex items-center gap-2"
-                          title={!googleConnected ? "Önce Google hesabınızı bağlayın" : ""}
-                        >
-                          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                          Kapıyı Aç
-                        </button>
-                        <button
-                          onClick={() => declineKnock(knock.id)}
-                          className="px-4 py-2.5 bg-slate-700 text-slate-300 rounded-lg font-medium transition-all hover:bg-red-500/20 hover:text-red-400"
-                        >
-                          Reddet
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Chat area */}
-                <div className="mt-4 border-t border-slate-700/50 pt-4">
-                  {/* Chat messages */}
-                  {(chatMessages[knock.id]?.length ?? 0) > 0 && (
-                    <div className="max-h-48 overflow-y-auto mb-3 space-y-2 pr-1 chat-scroll">
-                      {chatMessages[knock.id].map((msg, i) => (
-                        <div
-                          key={i}
-                          className={`flex ${msg.from === "boss" ? "justify-end" : "justify-start"}`}
-                        >
-                          <div
-                            className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
-                              msg.from === "boss"
-                                ? "bg-blue-600/30 text-blue-100 rounded-br-sm"
-                                : "bg-slate-600/50 text-slate-200 rounded-bl-sm"
-                            }`}
+                    <div className="flex gap-2">
+                      {processingKnockId === knock.id ? (
+                        <Button size="sm" disabled className="gap-1.5 flex-1">
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          Olusturuluyor...
+                        </Button>
+                      ) : (
+                        <>
+                          <Button
+                            size="sm"
+                            className="gap-1.5 flex-1"
+                            onClick={() => openDoor(knock.id)}
+                            disabled={!googleConnected || processingKnockId !== null}
                           >
-                            <p>{msg.text}</p>
-                            <p className={`text-[10px] mt-1 ${msg.from === "boss" ? "text-blue-300/60" : "text-slate-400/60"}`}>
-                              {new Date(msg.timestamp).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                      <div ref={(el) => { chatEndRefs.current[knock.id] = el; }} />
+                            <Video className="w-3.5 h-3.5" />
+                            Kapiyi Ac
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                            onClick={() => declineKnock(knock.id)}
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </Button>
+                        </>
+                      )}
                     </div>
-                  )}
-
-                  {/* Chat input */}
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
-                      value={chatInputs[knock.id] || ""}
-                      onChange={(e) => setChatInputs((prev) => ({ ...prev, [knock.id]: e.target.value }))}
-                      onKeyDown={(e) => e.key === "Enter" && sendChat(knock.id)}
-                      placeholder="Mesaj yazın... (örn: 5dk bekle)"
-                      className="flex-1 px-3 py-2 bg-slate-700/40 border border-slate-600/40 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
-                    />
-                    <button
-                      onClick={() => sendChat(knock.id)}
-                      disabled={!chatInputs[knock.id]?.trim()}
-                      className="px-3 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium transition-all hover:bg-blue-500 disabled:opacity-30 disabled:hover:bg-blue-600"
-                    >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                    </button>
                   </div>
-                </div>
-              </div>
+
+                  {/* Chat area */}
+                  <div className="border-t border-border">
+                    {(chatMessages[knock.id]?.length ?? 0) > 0 && (
+                      <div className="max-h-48 overflow-y-auto p-3 space-y-2 chat-scroll">
+                        {chatMessages[knock.id].map((msg, i) => (
+                          <div
+                            key={i}
+                            className={cn("flex", msg.from === "boss" ? "justify-end" : "justify-start")}
+                          >
+                            <div
+                              className={cn(
+                                "max-w-[80%] px-3 py-2 rounded-lg text-sm",
+                                msg.from === "boss"
+                                  ? "bg-foreground text-background rounded-br-sm"
+                                  : "bg-secondary text-secondary-foreground rounded-bl-sm"
+                              )}
+                            >
+                              <p>{msg.text}</p>
+                              <p className={cn(
+                                "text-[10px] mt-1",
+                                msg.from === "boss" ? "text-background/60" : "text-muted-foreground"
+                              )}>
+                                {formatTime(msg.timestamp)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                        <div ref={(el) => { chatEndRefs.current[knock.id] = el; }} />
+                      </div>
+                    )}
+
+                    <div className="p-3 flex gap-2">
+                      <Input
+                        value={chatInputs[knock.id] || ""}
+                        onChange={(e) => setChatInputs((prev) => ({ ...prev, [knock.id]: e.target.value }))}
+                        onKeyDown={(e) => e.key === "Enter" && sendChat(knock.id)}
+                        placeholder="Mesaj yazin..."
+                        className="h-9 text-sm"
+                      />
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        className="h-9 w-9 flex-shrink-0 text-muted-foreground hover:text-foreground"
+                        onClick={() => sendChat(knock.id)}
+                        disabled={!chatInputs[knock.id]?.trim()}
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}

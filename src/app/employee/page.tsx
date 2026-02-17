@@ -3,6 +3,21 @@
 import { useEffect, useState, useCallback, useRef } from "react";
 import { getSocket } from "@/lib/socket";
 import { v4 as uuidv4 } from "uuid";
+import {
+  Send,
+  Video,
+  ArrowLeft,
+  RotateCcw,
+  Volume2,
+  X,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
+import Link from "next/link";
 
 interface ChatMessage {
   from: "boss" | "employee";
@@ -23,9 +38,7 @@ export default function EmployeePage() {
   const [declineMessage, setDeclineMessage] = useState("");
   const [connected, setConnected] = useState(false);
   const [knockId, setKnockId] = useState("");
-  const [doorAnimate, setDoorAnimate] = useState(false);
 
-  // Chat state
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement | null>(null);
@@ -36,15 +49,11 @@ export default function EmployeePage() {
     socket.on("connect", () => setConnected(true));
     socket.on("disconnect", () => setConnected(false));
     socket.on("boss-status", (status: BossStatus) => setBossStatus(status));
-
-    socket.on("knock-sent", () => {
-      setKnockState("waiting");
-    });
+    socket.on("knock-sent", () => setKnockState("waiting"));
 
     socket.on("door-opened", (data: { meetLink: string }) => {
       setKnockState("accepted");
       setMeetLink(data.meetLink);
-      setDoorAnimate(true);
     });
 
     socket.on("knock-declined", (data: { message: string }) => {
@@ -67,7 +76,6 @@ export default function EmployeePage() {
     };
   }, []);
 
-  // Auto-scroll chat
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [chatMessages]);
@@ -88,7 +96,7 @@ export default function EmployeePage() {
     socket.emit("knock", {
       id: knockId,
       employeeName: name,
-      message: message || "Görüşmek istiyorum",
+      message: message || "Gorusmek istiyorum",
       timestamp: Date.now(),
     });
   }, [knockId, name, message, bossStatus]);
@@ -105,7 +113,6 @@ export default function EmployeePage() {
     setMeetLink("");
     setDeclineMessage("");
     setMessage("");
-    setDoorAnimate(false);
     setChatMessages([]);
     setChatInput("");
     const id = uuidv4().split("-")[0];
@@ -113,197 +120,217 @@ export default function EmployeePage() {
     getSocket().emit("employee-join", id);
   }, []);
 
+  const formatTime = (timestamp: number) => {
+    return new Date(timestamp).toLocaleTimeString("tr-TR", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
   const statusConfig = {
-    available: { label: "Müsait", color: "text-green-400", bg: "bg-green-500", glow: "status-glow-available" },
-    busy: { label: "Meşgul", color: "text-red-400", bg: "bg-red-500", glow: "status-glow-busy" },
-    away: { label: "Uzakta", color: "text-yellow-400", bg: "bg-yellow-500", glow: "status-glow-away" },
+    available: { label: "Musait", variant: "success" as const, dotColor: "bg-emerald-500" },
+    busy: { label: "Mesgul", variant: "destructive" as const, dotColor: "bg-red-500" },
+    away: { label: "Uzakta", variant: "warning" as const, dotColor: "bg-amber-500" },
   };
 
   // Name entry screen
   if (!nameSubmitted) {
     return (
-      <div className="min-h-screen flex items-center justify-center p-6">
-        <div className="glass-card rounded-2xl p-8 max-w-md w-full">
-          <div className="text-center mb-8">
-            <div className="w-20 h-24 bg-gradient-to-b from-amber-700 to-amber-900 rounded-t-lg mx-auto mb-4 relative">
-              <div className="absolute right-2 top-1/2 w-3 h-3 bg-yellow-400 rounded-full" />
+      <div className="min-h-screen bg-background flex flex-col">
+        <nav className="border-b border-border">
+          <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center gap-2 sm:gap-3">
+            <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div className="h-5 w-px bg-border" />
+            <div className="flex items-center gap-2">
+              <div className="w-6 h-6 rounded-md bg-foreground flex items-center justify-center">
+                <svg className="w-3.5 h-3.5 text-background" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                  <polyline points="9 22 9 12 15 12 15 22" />
+                </svg>
+              </div>
+              <span className="font-semibold text-sm text-foreground">Knock</span>
             </div>
-            <h1 className="text-2xl font-bold gradient-text">Knock The Door</h1>
-            <p className="text-slate-400 mt-2">Yöneticinizle görüşmek için adınızı girin</p>
           </div>
-          <div className="space-y-4">
-            <input
-              type="text"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && submitName()}
-              placeholder="Adınız Soyadınız"
-              className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              autoFocus
-            />
-            <button
-              onClick={submitName}
-              disabled={!name.trim()}
-              className="w-full py-3 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-xl font-semibold transition-all hover:scale-[1.02] disabled:opacity-50 disabled:hover:scale-100"
-            >
-              Devam Et
-            </button>
-          </div>
+        </nav>
+
+        <div className="flex-1 flex items-center justify-center px-4 sm:px-6">
+          <Card className="max-w-sm w-full">
+            <CardContent className="p-5 sm:p-6">
+              <div className="text-center mb-5 sm:mb-6">
+                <div className="w-11 h-11 rounded-xl bg-secondary text-foreground flex items-center justify-center mx-auto mb-3">
+                  <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                </div>
+                <h1 className="text-lg font-semibold text-foreground">Hosgeldiniz</h1>
+                <p className="text-sm text-muted-foreground mt-1">Devam etmek icin adinizi girin</p>
+              </div>
+              <div className="space-y-3">
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && submitName()}
+                  placeholder="Adiniz Soyadiniz"
+                  autoFocus
+                />
+                <Button
+                  onClick={submitName}
+                  disabled={!name.trim()}
+                  className="w-full"
+                >
+                  Devam Et
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-6">
-      {/* Background */}
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute top-1/3 left-1/3 w-96 h-96 bg-blue-500/5 rounded-full blur-3xl" />
-        <div className="absolute bottom-1/3 right-1/3 w-96 h-96 bg-emerald-500/5 rounded-full blur-3xl" />
-      </div>
-
-      <div className="relative z-10 max-w-lg w-full">
-        {/* Connection status */}
-        <div className="flex items-center justify-end gap-2 mb-4">
-          <div className={`w-2 h-2 rounded-full ${connected ? "bg-green-500" : "bg-red-500"}`} />
-          <span className="text-xs text-slate-400">{connected ? "Bağlı" : "Bağlantı kesildi"}</span>
-        </div>
-
-        {/* Main card */}
-        <div className={`glass-card rounded-2xl overflow-hidden ${statusConfig[bossStatus].glow} transition-shadow duration-500`}>
-          {/* Boss status banner */}
-          <div className={`px-6 py-3 flex items-center justify-between ${
-            bossStatus === "available" ? "bg-green-500/10" :
-            bossStatus === "busy" ? "bg-red-500/10" : "bg-yellow-500/10"
-          }`}>
-            <div className="flex items-center gap-2">
-              <div className={`w-3 h-3 rounded-full ${statusConfig[bossStatus].bg} ${bossStatus === "available" ? "animate-pulse" : ""}`} />
-              <span className={`font-medium ${statusConfig[bossStatus].color}`}>
-                Yönetici: {statusConfig[bossStatus].label}
-              </span>
-            </div>
-            <span className="text-sm text-slate-400">Merhaba, {name}</span>
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Top nav */}
+      <nav className="border-b border-border sticky top-0 bg-background/80 backdrop-blur-sm z-50">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+              <ArrowLeft className="w-4 h-4" />
+            </Link>
+            <div className="h-5 w-px bg-border flex-shrink-0" />
+            <span className="font-medium text-sm text-foreground truncate">{name}</span>
           </div>
-
-          <div className="p-8">
-            {/* Door visualization */}
-            <div className="flex justify-center mb-8">
-              <div className="relative" style={{ perspective: "600px" }}>
-                <div
-                  className={`w-44 h-60 bg-gradient-to-b from-amber-700 to-amber-950 rounded-t-xl relative shadow-2xl border-4 border-amber-700/50 transition-transform duration-700 origin-left ${
-                    doorAnimate ? "animate-door-open" : ""
-                  } ${knockState === "knocking" ? "knock-shake" : ""}`}
-                >
-                  {/* Door panels */}
-                  <div className="absolute top-4 left-4 right-4 h-20 border-2 border-amber-600/20 rounded-sm" />
-                  <div className="absolute bottom-4 left-4 right-4 h-20 border-2 border-amber-600/20 rounded-sm" />
-                  {/* Door knob */}
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2">
-                    <div className="w-5 h-5 bg-yellow-400 rounded-full shadow-lg" />
-                    <div className="w-3 h-6 bg-yellow-500/80 rounded-b-sm mx-auto -mt-1" />
-                  </div>
-                  {/* Status sign on door */}
-                  <div className={`absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1 rounded text-xs font-bold shadow ${
-                    bossStatus === "available" ? "bg-green-500 text-white" :
-                    bossStatus === "busy" ? "bg-red-500 text-white" :
-                    "bg-yellow-500 text-black"
-                  }`}>
-                    {statusConfig[bossStatus].label}
-                  </div>
-                </div>
-                <div className="w-52 h-2 bg-slate-700 rounded-b-lg -ml-4" />
-
-                {/* Waiting animation overlay */}
-                {knockState === "waiting" && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="absolute w-16 h-16 rounded-full border-4 border-blue-500/50 animate-pulse-ring" />
-                    <div className="absolute w-16 h-16 rounded-full border-4 border-blue-500/30 animate-pulse-ring [animation-delay:0.5s]" />
-                  </div>
-                )}
-              </div>
+          <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
+            <Badge variant={statusConfig[bossStatus].variant} className="text-[11px] px-2 py-0.5">
+              <span className={cn(
+                "w-1.5 h-1.5 rounded-full mr-1.5",
+                statusConfig[bossStatus].dotColor,
+                bossStatus === "available" && "animate-pulse"
+              )} />
+              <span className="hidden sm:inline">Yonetici: </span>
+              {statusConfig[bossStatus].label}
+            </Badge>
+            <div className="flex items-center gap-1.5">
+              <div className={cn("w-2 h-2 rounded-full", connected ? "bg-emerald-500" : "bg-red-500")} />
             </div>
+          </div>
+        </div>
+      </nav>
 
-            {/* States */}
-            {knockState === "idle" && (
-              <div className="space-y-4">
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Mesajınız (opsiyonel)... Örn: Proje hakkında konuşmak istiyorum"
-                  rows={2}
-                  className="w-full px-4 py-3 bg-slate-700/50 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-sm"
-                />
-                <button
-                  onClick={knockDoor}
-                  disabled={bossStatus === "away"}
-                  className={`w-full py-4 rounded-xl font-bold text-lg transition-all ${
-                    bossStatus === "away"
-                      ? "bg-slate-700 text-slate-500 cursor-not-allowed"
-                      : "bg-gradient-to-r from-amber-600 to-amber-700 text-white hover:scale-[1.02] hover:shadow-lg hover:shadow-amber-500/25 active:scale-95"
-                  }`}
-                >
-                  {bossStatus === "away" ? (
-                    "Yönetici Uzakta - Kapı Kilitli"
-                  ) : (
-                    <span className="flex items-center justify-center gap-3">
-                      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z" />
-                      </svg>
-                      Kapıyı Çal
-                    </span>
-                  )}
-                </button>
-                {bossStatus === "busy" && (
-                  <p className="text-center text-sm text-yellow-400/80">
-                    Yönetici meşgul, ancak kapıyı çalabilirsiniz.
-                  </p>
-                )}
-              </div>
-            )}
-
-            {knockState === "knocking" && (
-              <div className="text-center">
-                <div className="inline-block animate-bounce text-4xl mb-4">🤛</div>
-                <p className="text-slate-300">Kapı çalınıyor...</p>
-              </div>
-            )}
-
-            {knockState === "waiting" && (
-              <div>
-                <div className="text-center mb-4">
-                  <div className="flex items-center justify-center gap-2 mb-3">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:0ms]" />
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:150ms]" />
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce [animation-delay:300ms]" />
+      <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6 sm:py-8">
+        <div className="max-w-md w-full">
+          {/* Idle - Knock door */}
+          {knockState === "idle" && (
+            <Card>
+              <CardContent className="p-5 sm:p-6">
+                <div className="text-center mb-5 sm:mb-6">
+                  <div className="w-14 h-14 rounded-2xl bg-secondary text-foreground flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                      <polyline points="9 22 9 12 15 12 15 22" />
+                    </svg>
                   </div>
-                  <p className="text-blue-300 font-medium">Kapı çalındı!</p>
-                  <p className="text-slate-400 text-sm mt-1">
-                    Yöneticinin yanıt vermesi bekleniyor...
+                  <h2 className="text-lg font-semibold text-foreground mb-1">Kapiyi Calin</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Yoneticinizle gorusme talebinde bulunun
                   </p>
                 </div>
 
-                {/* Chat area */}
-                <div className="mt-4 border-t border-slate-700/50 pt-4">
+                <div className="space-y-3">
+                  <Textarea
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="Mesajiniz (opsiyonel)..."
+                    rows={2}
+                    className="text-sm"
+                  />
+                  <Button
+                    onClick={knockDoor}
+                    disabled={bossStatus === "away"}
+                    className="w-full gap-2"
+                    size="lg"
+                  >
+                    {bossStatus === "away" ? (
+                      "Yonetici Uzakta"
+                    ) : (
+                      <>
+                        <Volume2 className="w-4 h-4" />
+                        Kapiyi Cal
+                      </>
+                    )}
+                  </Button>
+                  {bossStatus === "busy" && (
+                    <p className="text-center text-xs text-amber-600">
+                      Yonetici mesgul, ancak kapiyi calabilirsiniz.
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Knocking */}
+          {knockState === "knocking" && (
+            <Card>
+              <CardContent className="p-8 sm:p-12 text-center">
+                <div className="flex items-center justify-center gap-1.5 mb-4">
+                  <div className="w-2 h-2 rounded-full bg-foreground animate-pulse-dot" />
+                  <div className="w-2 h-2 rounded-full bg-foreground animate-pulse-dot [animation-delay:200ms]" />
+                  <div className="w-2 h-2 rounded-full bg-foreground animate-pulse-dot [animation-delay:400ms]" />
+                </div>
+                <p className="text-sm font-medium text-foreground">Kapi caliniyor...</p>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Waiting - With chat */}
+          {knockState === "waiting" && (
+            <Card>
+              <CardContent className="p-0">
+                <div className="p-5 sm:p-6 text-center border-b border-border">
+                  <div className="flex items-center justify-center gap-1.5 mb-3">
+                    <div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse-dot" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse-dot [animation-delay:200ms]" />
+                    <div className="w-1.5 h-1.5 rounded-full bg-foreground animate-pulse-dot [animation-delay:400ms]" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground">Kapi calindi</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Yoneticinin yanit vermesi bekleniyor...
+                  </p>
+                </div>
+
+                {/* Chat */}
+                <div>
                   {chatMessages.length > 0 && (
-                    <div className="max-h-52 overflow-y-auto mb-3 space-y-2 pr-1 chat-scroll">
+                    <div className="max-h-52 overflow-y-auto p-3 sm:p-4 space-y-2 chat-scroll">
                       {chatMessages.map((msg, i) => (
                         <div
                           key={i}
-                          className={`flex ${msg.from === "employee" ? "justify-end" : "justify-start"}`}
+                          className={cn("flex", msg.from === "employee" ? "justify-end" : "justify-start")}
                         >
                           <div
-                            className={`max-w-[80%] px-3 py-2 rounded-xl text-sm ${
+                            className={cn(
+                              "max-w-[80%] px-3 py-2 rounded-lg text-sm",
                               msg.from === "employee"
-                                ? "bg-blue-600/30 text-blue-100 rounded-br-sm"
-                                : "bg-emerald-600/20 text-emerald-100 rounded-bl-sm"
-                            }`}
+                                ? "bg-foreground text-background rounded-br-sm"
+                                : "bg-secondary text-secondary-foreground rounded-bl-sm"
+                            )}
                           >
-                            <p className={`text-[10px] font-medium mb-0.5 ${msg.from === "employee" ? "text-blue-300/70" : "text-emerald-300/70"}`}>
-                              {msg.from === "boss" ? "Yönetici" : "Siz"}
+                            <p className={cn(
+                              "text-[10px] font-medium mb-0.5",
+                              msg.from === "employee" ? "text-background/70" : "text-muted-foreground"
+                            )}>
+                              {msg.from === "boss" ? "Yonetici" : "Siz"}
                             </p>
                             <p>{msg.text}</p>
-                            <p className={`text-[10px] mt-1 ${msg.from === "employee" ? "text-blue-300/50" : "text-emerald-300/50"}`}>
-                              {new Date(msg.timestamp).toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" })}
+                            <p className={cn(
+                              "text-[10px] mt-1",
+                              msg.from === "employee" ? "text-background/50" : "text-muted-foreground/70"
+                            )}>
+                              {formatTime(msg.timestamp)}
                             </p>
                           </div>
                         </div>
@@ -312,72 +339,75 @@ export default function EmployeePage() {
                     </div>
                   )}
 
-                  <div className="flex gap-2">
-                    <input
-                      type="text"
+                  <div className="p-3 border-t border-border flex gap-2">
+                    <Input
                       value={chatInput}
                       onChange={(e) => setChatInput(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && sendChat()}
-                      placeholder="Yöneticiye mesaj yazın..."
-                      className="flex-1 px-3 py-2.5 bg-slate-700/40 border border-slate-600/40 rounded-lg text-white text-sm placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="Mesaj yazin..."
+                      className="h-9 text-sm"
                     />
-                    <button
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-9 w-9 flex-shrink-0 text-muted-foreground hover:text-foreground"
                       onClick={sendChat}
                       disabled={!chatInput.trim()}
-                      className="px-4 py-2.5 bg-blue-600 text-white rounded-lg text-sm font-medium transition-all hover:bg-blue-500 disabled:opacity-30 disabled:hover:bg-blue-600"
                     >
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                      </svg>
-                    </button>
+                      <Send className="w-4 h-4" />
+                    </Button>
                   </div>
                 </div>
-              </div>
-            )}
+              </CardContent>
+            </Card>
+          )}
 
-            {knockState === "accepted" && (
-              <div className="text-center space-y-4">
-                <div className="text-5xl mb-2">🎉</div>
-                <h3 className="text-xl font-bold text-green-400">Kapı Açıldı!</h3>
-                <p className="text-slate-300">
-                  Yönetici sizi görüşmeye davet ediyor.
+          {/* Accepted */}
+          {knockState === "accepted" && (
+            <Card>
+              <CardContent className="p-6 sm:p-8 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-4">
+                  <Video className="w-7 h-7" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">Kapi Acildi!</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Yonetici sizi gorusmeye davet ediyor.
                 </p>
-                <a
-                  href={meetLink}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl font-bold text-lg transition-all hover:scale-105 hover:shadow-lg hover:shadow-green-500/25"
-                >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                  </svg>
-                  Toplantıya Katıl
+                <a href={meetLink} target="_blank" rel="noopener noreferrer" className="block">
+                  <Button size="lg" className="gap-2 w-full bg-emerald-600 hover:bg-emerald-700">
+                    <Video className="w-4 h-4" />
+                    Toplantiya Katil
+                  </Button>
                 </a>
                 <button
                   onClick={resetState}
-                  className="block mx-auto text-sm text-slate-400 hover:text-white transition-colors mt-4"
+                  className="mt-4 text-xs text-muted-foreground hover:text-foreground transition-colors inline-flex items-center gap-1"
                 >
-                  Geri Dön
+                  <RotateCcw className="w-3 h-3" />
+                  Geri Don
                 </button>
-              </div>
-            )}
+              </CardContent>
+            </Card>
+          )}
 
-            {knockState === "declined" && (
-              <div className="text-center space-y-4">
-                <div className="text-4xl mb-2">😔</div>
-                <h3 className="text-lg font-medium text-red-400">Talep Reddedildi</h3>
-                <p className="text-slate-400 text-sm">{declineMessage}</p>
-                <button
-                  onClick={resetState}
-                  className="px-6 py-3 bg-slate-700 text-white rounded-xl font-medium transition-all hover:bg-slate-600"
-                >
+          {/* Declined */}
+          {knockState === "declined" && (
+            <Card>
+              <CardContent className="p-6 sm:p-8 text-center">
+                <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-500 flex items-center justify-center mx-auto mb-4">
+                  <X className="w-7 h-7" />
+                </div>
+                <h3 className="text-lg font-semibold text-foreground mb-1">Talep Reddedildi</h3>
+                <p className="text-sm text-muted-foreground mb-6">{declineMessage}</p>
+                <Button onClick={resetState} variant="outline" className="gap-2">
+                  <RotateCcw className="w-3.5 h-3.5" />
                   Tekrar Dene
-                </button>
-              </div>
-            )}
-          </div>
+                </Button>
+              </CardContent>
+            </Card>
+          )}
         </div>
-      </div>
+      </main>
     </div>
   );
 }
