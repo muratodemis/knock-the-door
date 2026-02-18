@@ -130,10 +130,8 @@ app.prepare().then(() => {
     socket.on("boss-status-change", (status: BossStatusType) => {
       if (status === "in-meeting") return;
       bossStatus = status;
-      if (status !== "busy" && status !== "away") {
-        // If boss goes available, clear meeting tracking
-      }
       io.emit("boss-status", bossStatus);
+      broadcastQueueStats(io);
       console.log(`Boss status changed to: ${status}`);
     });
 

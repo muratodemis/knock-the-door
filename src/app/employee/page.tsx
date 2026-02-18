@@ -172,6 +172,85 @@ export default function EmployeePage() {
     away: { label: "Uzakta", variant: "warning", dotColor: "bg-amber-500" },
   };
 
+  const queueStatusInfo = (() => {
+    if (!queueStats) return null;
+    const q = queueStats.totalInQueue;
+    const wait = queueStats.estimatedWaitForNew || 1;
+
+    if (bossStatus === "away") {
+      return {
+        bg: "bg-red-50 border-red-200",
+        dotColor: "bg-red-400",
+        dotPulse: false,
+        title: "Yonetici su an uzakta",
+        titleColor: "text-red-800",
+        sub: q > 0 ? `Sirada ${q} kisi bekliyor` : null,
+        subColor: "text-red-600",
+      };
+    }
+
+    if (bossStatus === "in-meeting") {
+      if (q === 0) return {
+        bg: "bg-amber-50 border-amber-200",
+        dotColor: "bg-amber-500",
+        dotPulse: true,
+        title: "Yonetici gorusmede, sira bos",
+        titleColor: "text-amber-800",
+        sub: "Gorusme bitince ilk siz olursunuz",
+        subColor: "text-amber-600",
+      };
+      return {
+        bg: "bg-red-50 border-red-200",
+        dotColor: "bg-red-500",
+        dotPulse: true,
+        title: `Yonetici gorusmede, sirada ${q} kisi`,
+        titleColor: "text-red-900",
+        sub: `Tahmini bekleme: ~${wait} dk`,
+        subColor: "text-red-700",
+      };
+    }
+
+    if (bossStatus === "busy") {
+      if (q === 0) return {
+        bg: "bg-amber-50 border-amber-200",
+        dotColor: "bg-amber-500",
+        dotPulse: false,
+        title: "Yonetici mesgul, sirada kimse yok",
+        titleColor: "text-amber-800",
+        sub: "Kapiyi calabilirsiniz, uygun olunca doner",
+        subColor: "text-amber-600",
+      };
+      return {
+        bg: "bg-amber-50 border-amber-200",
+        dotColor: "bg-amber-600",
+        dotPulse: false,
+        title: `Yonetici mesgul, sirada ${q} kisi bekliyor`,
+        titleColor: "text-amber-900",
+        sub: `Tahmini bekleme: ~${wait} dk`,
+        subColor: "text-amber-700",
+      };
+    }
+
+    if (q === 0) return {
+      bg: "bg-emerald-50 border-emerald-200",
+      dotColor: "bg-emerald-500",
+      dotPulse: true,
+      title: "Sira bos, kabul ederse hemen gorusebilirsiniz",
+      titleColor: "text-emerald-800",
+      sub: null,
+      subColor: null,
+    };
+    return {
+      bg: "bg-amber-50 border-amber-200",
+      dotColor: "bg-amber-500",
+      dotPulse: false,
+      title: `Sirada ${q} kisi bekliyor`,
+      titleColor: "text-amber-900",
+      sub: `Simdi siraya girerseniz tahmini bekleme: ~${wait} dk`,
+      subColor: "text-amber-700",
+    };
+  })();
+
   if (!nameSubmitted) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -291,30 +370,25 @@ export default function EmployeePage() {
                     </p>
                   </div>
 
-                  {/* Queue status info */}
-                  {queueStats && queueStats.totalInQueue > 0 && (
-                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 sm:mb-6">
-                      <div className="flex items-center gap-2 mb-1">
-                        <Users className="w-4 h-4 text-amber-600" />
-                        <span className="text-sm font-medium text-amber-900">
-                          Sirada {queueStats.totalInQueue} kisi bekliyor
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs text-amber-700">
-                        <Clock className="w-3 h-3" />
-                        Simdi siraya girerseniz tahmini bekleme: ~{queueStats.estimatedWaitForNew || 1} dk
-                      </div>
-                    </div>
-                  )}
-
-                  {queueStats && queueStats.totalInQueue === 0 && bossStatus !== "away" && (
-                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-5 sm:mb-6">
+                  {/* Queue + boss status indicator */}
+                  {queueStatusInfo && (
+                    <div className={cn("rounded-lg px-4 py-3 mb-5 sm:mb-6 border transition-all duration-300", queueStatusInfo.bg)}>
                       <div className="flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                        <span className="text-sm font-medium text-emerald-800">
-                          Sira bos, kabul ederse hemen gorusebilirsiniz
+                        <span className={cn(
+                          "w-2 h-2 rounded-full flex-shrink-0",
+                          queueStatusInfo.dotColor,
+                          queueStatusInfo.dotPulse && "animate-pulse"
+                        )} />
+                        <span className={cn("text-sm font-medium", queueStatusInfo.titleColor)}>
+                          {queueStatusInfo.title}
                         </span>
                       </div>
+                      {queueStatusInfo.sub && (
+                        <div className={cn("flex items-center gap-1.5 text-xs mt-1 ml-4", queueStatusInfo.subColor)}>
+                          <Clock className="w-3 h-3" />
+                          {queueStatusInfo.sub}
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -361,16 +435,6 @@ export default function EmployeePage() {
                         </>
                       )}
                     </Button>
-                    {bossStatus === "busy" && (
-                      <p className="text-center text-xs text-amber-600">
-                        Yonetici mesgul, ancak kapiyi calabilirsiniz.
-                      </p>
-                    )}
-                    {bossStatus === "in-meeting" && (
-                      <p className="text-center text-xs text-amber-600">
-                        Yonetici gorusmede, ancak siraya girebilirsiniz.
-                      </p>
-                    )}
                   </div>
                 </CardContent>
               </Card>
