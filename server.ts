@@ -57,6 +57,14 @@ function broadcastQueueUpdate(io: SocketIOServer) {
       estimatedWaitMinutes: calculateWaitTime(index),
     });
   });
+  broadcastQueueStats(io);
+}
+
+function broadcastQueueStats(io: SocketIOServer) {
+  io.emit("queue-stats", {
+    totalInQueue: queue.length,
+    estimatedWaitForNew: calculateWaitTime(queue.length),
+  });
 }
 
 app.prepare().then(() => {
@@ -99,6 +107,10 @@ app.prepare().then(() => {
     socket.on("employee-join", (employeeId: string) => {
       socket.join(`employee-${employeeId}`);
       socket.emit("boss-status", bossStatus);
+      socket.emit("queue-stats", {
+        totalInQueue: queue.length,
+        estimatedWaitForNew: calculateWaitTime(queue.length),
+      });
       const queueIndex = queue.findIndex((k) => k.id === employeeId);
       if (queueIndex !== -1) {
         socket.emit("queue-update", {

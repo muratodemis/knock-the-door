@@ -33,6 +33,11 @@ interface QueueInfo {
   estimatedWaitMinutes: number;
 }
 
+interface QueueStats {
+  totalInQueue: number;
+  estimatedWaitForNew: number;
+}
+
 type BossStatus = "available" | "busy" | "away" | "in-meeting";
 type KnockState = "idle" | "knocking" | "waiting" | "accepted" | "declined";
 
@@ -48,6 +53,7 @@ export default function EmployeePage() {
   const [connected, setConnected] = useState(false);
   const [knockId, setKnockId] = useState("");
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
+  const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
   const [meetingWith, setMeetingWith] = useState<string | null>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -78,6 +84,10 @@ export default function EmployeePage() {
       setQueueInfo(data);
     });
 
+    socket.on("queue-stats", (data: QueueStats) => {
+      setQueueStats(data);
+    });
+
     socket.on("current-meeting-info", (data: { employeeName: string } | null) => {
       setMeetingWith(data?.employeeName || null);
     });
@@ -94,6 +104,7 @@ export default function EmployeePage() {
       socket.off("door-opened");
       socket.off("knock-declined");
       socket.off("queue-update");
+      socket.off("queue-stats");
       socket.off("current-meeting-info");
       socket.off("chat-message");
     };
@@ -275,6 +286,33 @@ export default function EmployeePage() {
                   </p>
                 </div>
 
+                {/* Queue status info */}
+                {queueStats && queueStats.totalInQueue > 0 && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 sm:mb-6">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Users className="w-4 h-4 text-amber-600" />
+                      <span className="text-sm font-medium text-amber-900">
+                        Sirada {queueStats.totalInQueue} kisi bekliyor
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 text-xs text-amber-700">
+                      <Clock className="w-3 h-3" />
+                      Simdi siraya girerseniz tahmini bekleme: ~{queueStats.estimatedWaitForNew || 1} dk
+                    </div>
+                  </div>
+                )}
+
+                {queueStats && queueStats.totalInQueue === 0 && bossStatus !== "away" && (
+                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-5 sm:mb-6">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-sm font-medium text-emerald-800">
+                        Sira bos, hemen gorusebilirsiniz
+                      </span>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-3">
                   <Textarea
                     value={message}
@@ -361,32 +399,6 @@ export default function EmployeePage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Yoneticinin yanit vermesi bekleniyor...
                   </p>
-
-                  {/* Queue info */}
-                  {queueInfo && (
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-center gap-4">
-                        <div className="flex items-center gap-1.5 text-xs">
-                          <Users className="w-3.5 h-3.5 text-muted-foreground" />
-                          <span className="text-muted-foreground">Sira:</span>
-                          <span className="font-semibold text-foreground">
-                            {queueInfo.position}. / {queueInfo.totalInQueue} kisi
-                          </span>
-                        </div>
-                      </div>
-                      {queueInfo.position === 1 && bossStatus !== "in-meeting" ? (
-                        <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1.5 rounded-full">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                          Sirada ilk sizsiniz!
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-1.5 bg-secondary text-muted-foreground text-xs px-3 py-1.5 rounded-full">
-                          <Clock className="w-3 h-3" />
-                          Tahmini bekleme: ~{queueInfo.estimatedWaitMinutes || 1} dk
-                        </div>
-                      )}
-                    </div>
-                  )}
                 </div>
 
                 {/* Chat */}
