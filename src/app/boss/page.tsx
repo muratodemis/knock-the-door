@@ -262,7 +262,7 @@ export default function BossPage() {
     <div className="min-h-screen bg-background">
       {/* Top nav */}
       <nav className="border-b border-border sticky top-0 bg-background/80 backdrop-blur-sm z-50">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link href="/" className="text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
               <ArrowLeft className="w-4 h-4" />
@@ -309,7 +309,7 @@ export default function BossPage() {
         </div>
       </nav>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 sm:py-8">
         {/* Google not connected warning */}
         {!googleChecking && !googleConnected && (
           <Card className="mb-4 sm:mb-6 border-amber-200 bg-amber-50/50">
@@ -414,53 +414,33 @@ export default function BossPage() {
           </Card>
         )}
 
-        {/* Calendar Section */}
-        {!googleChecking && googleConnected && (
-          <div className="mb-4 sm:mb-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-medium text-foreground">Takvim</h2>
-              {calendars.length > 0 && (
-                <select
-                  value={selectedCalendar || ""}
-                  onChange={(e) => saveCalendarSelection(e.target.value)}
-                  className="text-xs border border-input rounded-md px-2 py-1 bg-background text-foreground"
-                >
-                  {calendars.map((cal) => (
-                    <option key={cal.id} value={cal.id}>
-                      {cal.name}{cal.primary ? " (Ana)" : ""}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-            <CalendarWidget />
-          </div>
-        )}
+        {/* Main content: Knocks (left) + Calendar (right) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 items-start">
+          {/* Left: Knock Requests / Queue (8 cols) */}
+          <div className="lg:col-span-8">
+            {knocks.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 sm:p-12 text-center">
+                  <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
+                    <svg className="w-6 h-6 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
+                      <path d="M13.73 21a2 2 0 01-3.46 0" />
+                    </svg>
+                  </div>
+                  <p className="text-sm font-medium text-foreground mb-1">Henuz kimse kapiyi calmadi</p>
+                  <p className="text-xs text-muted-foreground">Yeni bildirimler burada gorunecek</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h2 className="text-sm font-medium text-foreground">
+                    Siradaki Talepler
+                  </h2>
+                  <Badge variant="secondary">{knocks.length} kisi bekliyor</Badge>
+                </div>
 
-        {/* Knock Requests / Queue */}
-        {knocks.length === 0 ? (
-          <Card>
-            <CardContent className="p-8 sm:p-12 text-center">
-              <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mx-auto mb-4">
-                <svg className="w-6 h-6 text-muted-foreground" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                  <path d="M13.73 21a2 2 0 01-3.46 0" />
-                </svg>
-              </div>
-              <p className="text-sm font-medium text-foreground mb-1">Henuz kimse kapiyi calmadi</p>
-              <p className="text-xs text-muted-foreground">Yeni bildirimler burada gorunecek</p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium text-foreground">
-                Siradaki Talepler
-              </h2>
-              <Badge variant="secondary">{knocks.length} kisi bekliyor</Badge>
-            </div>
-
-            {knocks.map((knock, index) => (
+                {knocks.map((knock, index) => (
               <Card key={knock.id} className="overflow-hidden">
                 <CardContent className="p-0">
                   {/* Knock header */}
@@ -575,8 +555,33 @@ export default function BossPage() {
                 </CardContent>
               </Card>
             ))}
+              </div>
+            )}
           </div>
-        )}
+
+          {/* Right: Calendar (4 cols) */}
+          {!googleChecking && googleConnected && (
+            <div className="lg:col-span-4 lg:sticky lg:top-20">
+              {calendars.length > 0 && (
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="text-sm font-medium text-foreground">Takvim</h2>
+                  <select
+                    value={selectedCalendar || ""}
+                    onChange={(e) => saveCalendarSelection(e.target.value)}
+                    className="text-xs border border-input rounded-md px-2 py-1 bg-background text-foreground max-w-[140px] truncate"
+                  >
+                    {calendars.map((cal) => (
+                      <option key={cal.id} value={cal.id}>
+                        {cal.name}{cal.primary ? " (Ana)" : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <CalendarWidget />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
