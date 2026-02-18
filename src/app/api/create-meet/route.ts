@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { createGoogleMeet, isAuthenticated } from "@/lib/google-auth";
+import { createGoogleMeet, isAuthenticated, ensureBootstrapped } from "@/lib/google-auth";
+
+export const dynamic = "force-dynamic";
 
 export async function POST() {
+  await ensureBootstrapped();
   if (!isAuthenticated()) {
     return NextResponse.json(
       { error: "Google hesabı bağlı değil" },

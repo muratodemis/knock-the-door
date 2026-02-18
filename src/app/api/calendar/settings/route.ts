@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getSelectedCalendarId, setSelectedCalendarId } from "@/lib/google-auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   const selectedCalendarId = getSelectedCalendarId();
   return NextResponse.json({ selectedCalendarId });

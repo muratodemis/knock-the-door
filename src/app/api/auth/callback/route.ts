@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { handleCallback } from "@/lib/google-auth";
 
+export const dynamic = "force-dynamic";
+
 const baseUrl = process.env.NODE_ENV === "production"
   ? "https://murat.org/knock"
   : "http://localhost:3012";

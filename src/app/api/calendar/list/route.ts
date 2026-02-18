@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
-import { isAuthenticated, listCalendars } from "@/lib/google-auth";
+import { isAuthenticated, listCalendars, ensureBootstrapped } from "@/lib/google-auth";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
+  await ensureBootstrapped();
   if (!isAuthenticated()) {
     return NextResponse.json(
       { error: "Google hesabi bagli degil" },

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { isAuthenticated, getTodayBusySlots, ensureBootstrapped } from "@/lib/google-auth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   await ensureBootstrapped();
   if (!isAuthenticated()) {

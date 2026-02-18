@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getCalComUrl, setCalComUrl } from "@/lib/google-auth";
 
+export const dynamic = "force-dynamic";
+
 const DEFAULT_CAL_URL = "cal.com/muratodemis";
 
 export async function GET() {
