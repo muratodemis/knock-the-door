@@ -10,6 +10,8 @@ import {
   RotateCcw,
   Volume2,
   X,
+  Clock,
+  Users,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -25,19 +27,28 @@ interface ChatMessage {
   timestamp: number;
 }
 
-type BossStatus = "available" | "busy" | "away";
+interface QueueInfo {
+  position: number;
+  totalInQueue: number;
+  estimatedWaitMinutes: number;
+}
+
+type BossStatus = "available" | "busy" | "away" | "in-meeting";
 type KnockState = "idle" | "knocking" | "waiting" | "accepted" | "declined";
 
 export default function EmployeePage() {
   const [name, setName] = useState("");
   const [nameSubmitted, setNameSubmitted] = useState(false);
   const [message, setMessage] = useState("");
+  const [estimatedDuration, setEstimatedDuration] = useState("");
   const [bossStatus, setBossStatus] = useState<BossStatus>("available");
   const [knockState, setKnockState] = useState<KnockState>("idle");
   const [meetLink, setMeetLink] = useState("");
   const [declineMessage, setDeclineMessage] = useState("");
   const [connected, setConnected] = useState(false);
   const [knockId, setKnockId] = useState("");
+  const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
+  const [meetingWith, setMeetingWith] = useState<string | null>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
@@ -54,11 +65,21 @@ export default function EmployeePage() {
     socket.on("door-opened", (data: { meetLink: string }) => {
       setKnockState("accepted");
       setMeetLink(data.meetLink);
+      setQueueInfo(null);
     });
 
     socket.on("knock-declined", (data: { message: string }) => {
       setKnockState("declined");
       setDeclineMessage(data.message);
+      setQueueInfo(null);
+    });
+
+    socket.on("queue-update", (data: QueueInfo) => {
+      setQueueInfo(data);
+    });
+
+    socket.on("current-meeting-info", (data: { employeeName: string } | null) => {
+      setMeetingWith(data?.employeeName || null);
     });
 
     socket.on("chat-message", (data: { from: "boss" | "employee"; text: string; timestamp: number }) => {
@@ -72,6 +93,8 @@ export default function EmployeePage() {
       socket.off("knock-sent");
       socket.off("door-opened");
       socket.off("knock-declined");
+      socket.off("queue-update");
+      socket.off("current-meeting-info");
       socket.off("chat-message");
     };
   }, []);
@@ -98,8 +121,9 @@ export default function EmployeePage() {
       employeeName: name,
       message: message || "Gorusmek istiyorum",
       timestamp: Date.now(),
+      estimatedDuration: estimatedDuration ? parseInt(estimatedDuration) : undefined,
     });
-  }, [knockId, name, message, bossStatus]);
+  }, [knockId, name, message, bossStatus, estimatedDuration]);
 
   const sendChat = useCallback(() => {
     const text = chatInput.trim();
@@ -113,8 +137,10 @@ export default function EmployeePage() {
     setMeetLink("");
     setDeclineMessage("");
     setMessage("");
+    setEstimatedDuration("");
     setChatMessages([]);
     setChatInput("");
+    setQueueInfo(null);
     const id = uuidv4().split("-")[0];
     setKnockId(id);
     getSocket().emit("employee-join", id);
@@ -127,13 +153,13 @@ export default function EmployeePage() {
     });
   };
 
-  const statusConfig = {
-    available: { label: "Musait", variant: "success" as const, dotColor: "bg-emerald-500" },
-    busy: { label: "Mesgul", variant: "destructive" as const, dotColor: "bg-red-500" },
-    away: { label: "Uzakta", variant: "warning" as const, dotColor: "bg-amber-500" },
+  const statusConfig: Record<BossStatus, { label: string; variant: "success" | "destructive" | "warning"; dotColor: string }> = {
+    available: { label: "Musait", variant: "success", dotColor: "bg-emerald-500" },
+    busy: { label: "Mesgul", variant: "destructive", dotColor: "bg-red-500" },
+    "in-meeting": { label: "Gorusmede", variant: "destructive", dotColor: "bg-red-500" },
+    away: { label: "Uzakta", variant: "warning", dotColor: "bg-amber-500" },
   };
 
-  // Name entry screen
   if (!nameSubmitted) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
@@ -220,6 +246,16 @@ export default function EmployeePage() {
         </div>
       </nav>
 
+      {/* In-meeting banner */}
+      {bossStatus === "in-meeting" && meetingWith && knockState !== "accepted" && (
+        <div className="bg-red-50 border-b border-red-100 px-4 py-2">
+          <div className="max-w-5xl mx-auto flex items-center justify-center gap-2 text-sm text-red-700">
+            <Video className="w-3.5 h-3.5" />
+            <span>Yonetici su an <strong>{meetingWith}</strong> ile gorusmede</span>
+          </div>
+        </div>
+      )}
+
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6 sm:py-8">
         <div className="max-w-md w-full">
           {/* Idle - Knock door */}
@@ -247,6 +283,26 @@ export default function EmployeePage() {
                     rows={2}
                     className="text-sm"
                   />
+
+                  <div>
+                    <label className="text-xs text-muted-foreground mb-1.5 block">
+                      Tahmini gorusme suresi (opsiyonel)
+                    </label>
+                    <select
+                      value={estimatedDuration}
+                      onChange={(e) => setEstimatedDuration(e.target.value)}
+                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                      <option value="">Belirtilmemis</option>
+                      <option value="5">5 dakika</option>
+                      <option value="10">10 dakika</option>
+                      <option value="15">15 dakika</option>
+                      <option value="30">30 dakika</option>
+                      <option value="45">45 dakika</option>
+                      <option value="60">1 saat</option>
+                    </select>
+                  </div>
+
                   <Button
                     onClick={knockDoor}
                     disabled={bossStatus === "away"}
@@ -265,6 +321,11 @@ export default function EmployeePage() {
                   {bossStatus === "busy" && (
                     <p className="text-center text-xs text-amber-600">
                       Yonetici mesgul, ancak kapiyi calabilirsiniz.
+                    </p>
+                  )}
+                  {bossStatus === "in-meeting" && (
+                    <p className="text-center text-xs text-amber-600">
+                      Yonetici gorusmede, ancak siraya girebilirsiniz.
                     </p>
                   )}
                 </div>
@@ -286,7 +347,7 @@ export default function EmployeePage() {
             </Card>
           )}
 
-          {/* Waiting - With chat */}
+          {/* Waiting - With queue info and chat */}
           {knockState === "waiting" && (
             <Card>
               <CardContent className="p-0">
@@ -300,6 +361,32 @@ export default function EmployeePage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Yoneticinin yanit vermesi bekleniyor...
                   </p>
+
+                  {/* Queue info */}
+                  {queueInfo && (
+                    <div className="mt-4 space-y-2">
+                      <div className="flex items-center justify-center gap-4">
+                        <div className="flex items-center gap-1.5 text-xs">
+                          <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                          <span className="text-muted-foreground">Sira:</span>
+                          <span className="font-semibold text-foreground">
+                            {queueInfo.position}. / {queueInfo.totalInQueue} kisi
+                          </span>
+                        </div>
+                      </div>
+                      {queueInfo.position === 1 && bossStatus !== "in-meeting" ? (
+                        <div className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-700 text-xs font-medium px-3 py-1.5 rounded-full">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                          Sirada ilk sizsiniz!
+                        </div>
+                      ) : (
+                        <div className="inline-flex items-center gap-1.5 bg-secondary text-muted-foreground text-xs px-3 py-1.5 rounded-full">
+                          <Clock className="w-3 h-3" />
+                          Tahmini bekleme: ~{queueInfo.estimatedWaitMinutes || 1} dk
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Chat */}

@@ -17,10 +17,47 @@ interface KnockRequest {
   employeeName: string;
   message: string;
   timestamp: number;
+  estimatedDuration?: number;
 }
 
-let bossStatus: "available" | "busy" | "away" = "available";
-const pendingKnocks: Map<string, KnockRequest> = new Map();
+type BossStatusType = "available" | "busy" | "away" | "in-meeting";
+
+let bossStatus: BossStatusType = "available";
+const queue: KnockRequest[] = [];
+let currentMeeting: {
+  knockId: string;
+  employeeName: string;
+  startedAt: number;
+  estimatedDuration: number;
+} | null = null;
+
+const DEFAULT_MEETING_DURATION = 15;
+
+function calculateWaitTime(queueIndex: number): number {
+  let totalWait = 0;
+
+  if (currentMeeting) {
+    const elapsedMin = (Date.now() - currentMeeting.startedAt) / 60000;
+    const remaining = Math.max(0, currentMeeting.estimatedDuration - elapsedMin);
+    totalWait += remaining;
+  }
+
+  for (let i = 0; i < queueIndex; i++) {
+    totalWait += queue[i].estimatedDuration || DEFAULT_MEETING_DURATION;
+  }
+
+  return Math.round(totalWait);
+}
+
+function broadcastQueueUpdate(io: SocketIOServer) {
+  queue.forEach((knock, index) => {
+    io.to(`employee-${knock.id}`).emit("queue-update", {
+      position: index + 1,
+      totalInQueue: queue.length,
+      estimatedWaitMinutes: calculateWaitTime(index),
+    });
+  });
+}
 
 app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
@@ -36,80 +73,129 @@ app.prepare().then(() => {
   io.on("connection", (socket) => {
     console.log(`Client connected: ${socket.id}`);
 
-    // Send current boss status to new connections
     socket.emit("boss-status", bossStatus);
+    if (currentMeeting) {
+      socket.emit("current-meeting-info", {
+        employeeName: currentMeeting.employeeName,
+      });
+    }
 
-    // Boss joins their room
     socket.on("boss-join", () => {
       socket.join("boss-room");
       console.log("Boss joined the room");
-      // Send any pending knocks
-      pendingKnocks.forEach((knock) => {
-        socket.emit("knock-received", knock);
+      queue.forEach((knock, index) => {
+        socket.emit("knock-received", { ...knock, queuePosition: index + 1 });
       });
+      if (currentMeeting) {
+        socket.emit("current-meeting-info", {
+          employeeName: currentMeeting.employeeName,
+          knockId: currentMeeting.knockId,
+          startedAt: currentMeeting.startedAt,
+          estimatedDuration: currentMeeting.estimatedDuration,
+        });
+      }
     });
 
-    // Employee joins their room
     socket.on("employee-join", (employeeId: string) => {
       socket.join(`employee-${employeeId}`);
       socket.emit("boss-status", bossStatus);
+      const queueIndex = queue.findIndex((k) => k.id === employeeId);
+      if (queueIndex !== -1) {
+        socket.emit("queue-update", {
+          position: queueIndex + 1,
+          totalInQueue: queue.length,
+          estimatedWaitMinutes: calculateWaitTime(queueIndex),
+        });
+      }
+      if (currentMeeting) {
+        socket.emit("current-meeting-info", {
+          employeeName: currentMeeting.employeeName,
+        });
+      }
       console.log(`Employee ${employeeId} joined`);
     });
 
-    // Boss changes status
-    socket.on("boss-status-change", (status: "available" | "busy" | "away") => {
+    socket.on("boss-status-change", (status: BossStatusType) => {
+      if (status === "in-meeting") return;
       bossStatus = status;
+      if (status !== "busy" && status !== "away") {
+        // If boss goes available, clear meeting tracking
+      }
       io.emit("boss-status", bossStatus);
       console.log(`Boss status changed to: ${status}`);
     });
 
-    // Employee knocks on the door
     socket.on("knock", (data: KnockRequest) => {
       console.log(`Knock from ${data.employeeName}: ${data.message}`);
-      pendingKnocks.set(data.id, data);
-      io.to("boss-room").emit("knock-received", data);
+      queue.push(data);
+      const position = queue.length;
+      io.to("boss-room").emit("knock-received", { ...data, queuePosition: position });
       socket.emit("knock-sent", { id: data.id, status: "waiting" });
+      broadcastQueueUpdate(io);
     });
 
-    // Boss opens the door (accepts knock)
     socket.on("open-door", (data: { knockId: string; meetLink: string }) => {
-      const knock = pendingKnocks.get(data.knockId);
-      if (knock) {
-        pendingKnocks.delete(data.knockId);
-        // Send meet link to the specific employee
+      const knockIndex = queue.findIndex((k) => k.id === data.knockId);
+      if (knockIndex !== -1) {
+        const knock = queue[knockIndex];
+        queue.splice(knockIndex, 1);
+
+        currentMeeting = {
+          knockId: data.knockId,
+          employeeName: knock.employeeName,
+          startedAt: Date.now(),
+          estimatedDuration: knock.estimatedDuration || DEFAULT_MEETING_DURATION,
+        };
+
+        bossStatus = "in-meeting";
+        io.emit("boss-status", bossStatus);
+        io.emit("current-meeting-info", {
+          employeeName: currentMeeting.employeeName,
+        });
+
         io.to(`employee-${data.knockId}`).emit("door-opened", {
           meetLink: data.meetLink,
         });
-        // Notify boss as well
+
         socket.emit("door-opened-confirm", {
           knockId: data.knockId,
           meetLink: data.meetLink,
           employeeName: knock.employeeName,
         });
+
+        broadcastQueueUpdate(io);
         console.log(`Door opened for ${knock.employeeName}, meet link: ${data.meetLink}`);
       }
     });
 
-    // Boss declines the knock
     socket.on("decline-knock", (knockId: string) => {
-      const knock = pendingKnocks.get(knockId);
-      if (knock) {
-        pendingKnocks.delete(knockId);
+      const knockIndex = queue.findIndex((k) => k.id === knockId);
+      if (knockIndex !== -1) {
+        const knock = queue[knockIndex];
+        queue.splice(knockIndex, 1);
         io.to(`employee-${knockId}`).emit("knock-declined", {
           message: "Yönetici şu an görüşme yapamıyor. Lütfen daha sonra tekrar deneyin.",
         });
+        broadcastQueueUpdate(io);
         console.log(`Knock declined for ${knock.employeeName}`);
       }
     });
 
-    // Chat: Boss sends message to employee
+    socket.on("meeting-ended", () => {
+      currentMeeting = null;
+      bossStatus = "available";
+      io.emit("boss-status", bossStatus);
+      io.emit("current-meeting-info", null);
+      broadcastQueueUpdate(io);
+      console.log("Meeting ended, boss is available again");
+    });
+
     socket.on("boss-chat", (data: { knockId: string; text: string }) => {
       io.to(`employee-${data.knockId}`).emit("chat-message", {
         from: "boss",
         text: data.text,
         timestamp: Date.now(),
       });
-      // Echo back to boss too so it appears in their chat
       socket.emit("chat-message", {
         knockId: data.knockId,
         from: "boss",
@@ -119,7 +205,6 @@ app.prepare().then(() => {
       console.log(`Boss -> Employee ${data.knockId}: ${data.text}`);
     });
 
-    // Chat: Employee sends message to boss
     socket.on("employee-chat", (data: { knockId: string; text: string }) => {
       io.to("boss-room").emit("chat-message", {
         knockId: data.knockId,
@@ -127,7 +212,6 @@ app.prepare().then(() => {
         text: data.text,
         timestamp: Date.now(),
       });
-      // Echo back to employee too
       socket.emit("chat-message", {
         from: "employee",
         text: data.text,

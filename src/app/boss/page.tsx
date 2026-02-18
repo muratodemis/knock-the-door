@@ -10,6 +10,8 @@ import {
   Check,
   Loader2,
   ArrowLeft,
+  PhoneOff,
+  Clock,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,6 +25,8 @@ interface KnockRequest {
   employeeName: string;
   message: string;
   timestamp: number;
+  estimatedDuration?: number;
+  queuePosition?: number;
 }
 
 interface ChatMessage {
@@ -31,7 +35,14 @@ interface ChatMessage {
   timestamp: number;
 }
 
-type BossStatus = "available" | "busy" | "away";
+interface CurrentMeetingInfo {
+  employeeName: string;
+  knockId?: string;
+  startedAt?: number;
+  estimatedDuration?: number;
+}
+
+type BossStatus = "available" | "busy" | "away" | "in-meeting";
 
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
@@ -39,6 +50,7 @@ export default function BossPage() {
   const [status, setStatus] = useState<BossStatus>("available");
   const [knocks, setKnocks] = useState<KnockRequest[]>([]);
   const [connected, setConnected] = useState(false);
+  const [currentMeeting, setCurrentMeeting] = useState<CurrentMeetingInfo | null>(null);
 
   const [googleConnected, setGoogleConnected] = useState(false);
   const [googleChecking, setGoogleChecking] = useState(true);
@@ -92,6 +104,10 @@ export default function BossPage() {
 
     socket.on("disconnect", () => setConnected(false));
 
+    socket.on("boss-status", (s: BossStatus) => {
+      setStatus(s);
+    });
+
     socket.on("knock-received", (knock: KnockRequest) => {
       setKnocks((prev) => {
         if (prev.find((k) => k.id === knock.id)) return prev;
@@ -112,7 +128,16 @@ export default function BossPage() {
         delete copy[data.knockId];
         return copy;
       });
+      setCurrentMeeting({
+        employeeName: data.employeeName,
+        knockId: data.knockId,
+        startedAt: Date.now(),
+      });
       window.open(data.meetLink, "_blank");
+    });
+
+    socket.on("current-meeting-info", (data: CurrentMeetingInfo | null) => {
+      setCurrentMeeting(data);
     });
 
     socket.on("chat-message", (data: { knockId: string; from: "boss" | "employee"; text: string; timestamp: number }) => {
@@ -125,8 +150,10 @@ export default function BossPage() {
     return () => {
       socket.off("connect");
       socket.off("disconnect");
+      socket.off("boss-status");
       socket.off("knock-received");
       socket.off("door-opened-confirm");
+      socket.off("current-meeting-info");
       socket.off("chat-message");
     };
   }, []);
@@ -134,6 +161,12 @@ export default function BossPage() {
   const changeStatus = useCallback((newStatus: BossStatus) => {
     setStatus(newStatus);
     getSocket().emit("boss-status-change", newStatus);
+  }, []);
+
+  const endMeeting = useCallback(() => {
+    getSocket().emit("meeting-ended");
+    setCurrentMeeting(null);
+    setStatus("available");
   }, []);
 
   const openDoor = useCallback(async (knockId: string) => {
@@ -180,11 +213,16 @@ export default function BossPage() {
     });
   };
 
-  const statusConfig = {
-    available: { label: "Musait", variant: "success" as const, dotColor: "bg-emerald-500" },
-    busy: { label: "Mesgul", variant: "destructive" as const, dotColor: "bg-red-500" },
-    away: { label: "Uzakta", variant: "warning" as const, dotColor: "bg-amber-500" },
+  const statusConfig: Record<BossStatus, { label: string; variant: "success" | "destructive" | "warning"; dotColor: string }> = {
+    available: { label: "Musait", variant: "success", dotColor: "bg-emerald-500" },
+    busy: { label: "Mesgul", variant: "destructive", dotColor: "bg-red-500" },
+    "in-meeting": { label: "Gorusmede", variant: "destructive", dotColor: "bg-red-500" },
+    away: { label: "Uzakta", variant: "warning", dotColor: "bg-amber-500" },
   };
+
+  const meetingElapsedMinutes = currentMeeting?.startedAt
+    ? Math.floor((Date.now() - currentMeeting.startedAt) / 60000)
+    : 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -268,43 +306,81 @@ export default function BossPage() {
           </Card>
         )}
 
-        {/* Status Control */}
-        <Card className="mb-4 sm:mb-6">
-          <CardContent className="p-4 sm:p-5">
-            <div className="flex items-center justify-between mb-3 sm:mb-4">
-              <h2 className="text-sm font-medium text-foreground">Kapi Durumu</h2>
-              <Badge variant={statusConfig[status].variant}>
-                <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", statusConfig[status].dotColor)} />
-                {statusConfig[status].label}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {(["available", "busy", "away"] as BossStatus[]).map((s) => (
+        {/* Active Meeting Banner */}
+        {status === "in-meeting" && currentMeeting && (
+          <Card className="mb-4 sm:mb-6 border-red-200 bg-red-50/50">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full bg-red-100 text-red-600 flex items-center justify-center flex-shrink-0">
+                    <Video className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-red-900">
+                      Aktif Gorusme
+                    </p>
+                    <p className="text-xs text-red-700 mt-0.5">
+                      <span className="font-medium">{currentMeeting.employeeName}</span> ile gorusme devam ediyor
+                      {meetingElapsedMinutes > 0 && (
+                        <span className="ml-1.5 text-red-500">({meetingElapsedMinutes} dk)</span>
+                      )}
+                    </p>
+                  </div>
+                </div>
                 <Button
-                  key={s}
-                  variant={status === s ? "default" : "outline"}
                   size="sm"
-                  onClick={() => changeStatus(s)}
-                  className={cn(
-                    "text-xs sm:text-sm",
-                    status === s && s === "available" && "bg-emerald-600 hover:bg-emerald-700",
-                    status === s && s === "busy" && "bg-red-500 hover:bg-red-600",
-                    status === s && s === "away" && "bg-amber-500 hover:bg-amber-600",
-                  )}
+                  variant="outline"
+                  className="gap-1.5 border-red-300 text-red-700 hover:bg-red-100 hover:text-red-800 flex-shrink-0"
+                  onClick={endMeeting}
                 >
-                  {statusConfig[s].label}
+                  <PhoneOff className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Gorusmeyi Bitir</span>
+                  <span className="sm:hidden">Bitir</span>
                 </Button>
-              ))}
-            </div>
-            <p className="mt-3 text-xs text-muted-foreground">
-              {status === "available" && "Calisanlar kapinizi calabilir."}
-              {status === "busy" && "Mesgul gorunuyorsunuz, acil durumlar icin kapi acik."}
-              {status === "away" && "Uzaktasiniz. Kapi calma devre disi."}
-            </p>
-          </CardContent>
-        </Card>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Knock Requests */}
+        {/* Status Control */}
+        {status !== "in-meeting" && (
+          <Card className="mb-4 sm:mb-6">
+            <CardContent className="p-4 sm:p-5">
+              <div className="flex items-center justify-between mb-3 sm:mb-4">
+                <h2 className="text-sm font-medium text-foreground">Kapi Durumu</h2>
+                <Badge variant={statusConfig[status].variant}>
+                  <span className={cn("w-1.5 h-1.5 rounded-full mr-1.5", statusConfig[status].dotColor)} />
+                  {statusConfig[status].label}
+                </Badge>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {(["available", "busy", "away"] as BossStatus[]).map((s) => (
+                  <Button
+                    key={s}
+                    variant={status === s ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => changeStatus(s)}
+                    className={cn(
+                      "text-xs sm:text-sm",
+                      status === s && s === "available" && "bg-emerald-600 hover:bg-emerald-700",
+                      status === s && s === "busy" && "bg-red-500 hover:bg-red-600",
+                      status === s && s === "away" && "bg-amber-500 hover:bg-amber-600",
+                    )}
+                  >
+                    {statusConfig[s].label}
+                  </Button>
+                ))}
+              </div>
+              <p className="mt-3 text-xs text-muted-foreground">
+                {status === "available" && "Calisanlar kapinizi calabilir."}
+                {status === "busy" && "Mesgul gorunuyorsunuz, acil durumlar icin kapi acik."}
+                {status === "away" && "Uzaktasiniz. Kapi calma devre disi."}
+              </p>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Knock Requests / Queue */}
         {knocks.length === 0 ? (
           <Card>
             <CardContent className="p-8 sm:p-12 text-center">
@@ -321,22 +397,35 @@ export default function BossPage() {
         ) : (
           <div className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-medium text-foreground">Bekleyen Talepler</h2>
-              <Badge variant="secondary">{knocks.length}</Badge>
+              <h2 className="text-sm font-medium text-foreground">
+                Siradaki Talepler
+              </h2>
+              <Badge variant="secondary">{knocks.length} kisi bekliyor</Badge>
             </div>
 
-            {knocks.map((knock) => (
+            {knocks.map((knock, index) => (
               <Card key={knock.id} className="overflow-hidden">
                 <CardContent className="p-0">
                   {/* Knock header */}
                   <div className="p-3 sm:p-4">
                     <div className="flex items-center gap-3 mb-3">
-                      <div className="w-9 h-9 rounded-full bg-secondary text-foreground flex items-center justify-center text-sm font-semibold flex-shrink-0">
+                      <div className="w-9 h-9 rounded-full bg-secondary text-foreground flex items-center justify-center text-sm font-bold flex-shrink-0 relative">
+                        <span className="absolute -top-1 -left-1 w-5 h-5 rounded-full bg-foreground text-background flex items-center justify-center text-[10px] font-bold">
+                          {index + 1}
+                        </span>
                         {knock.employeeName.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="text-sm font-medium text-foreground truncate">{knock.employeeName}</h3>
-                        <p className="text-xs text-muted-foreground">{formatTime(knock.timestamp)}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-xs text-muted-foreground">{formatTime(knock.timestamp)}</span>
+                          {knock.estimatedDuration && (
+                            <span className="inline-flex items-center gap-1 text-xs text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                              <Clock className="w-3 h-3" />
+                              {knock.estimatedDuration} dk
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
 
@@ -361,7 +450,7 @@ export default function BossPage() {
                             disabled={!googleConnected || processingKnockId !== null}
                           >
                             <Video className="w-3.5 h-3.5" />
-                            Kapiyi Ac
+                            {index === 0 ? "Kapiyi Ac" : `Kapiyi Ac (#${index + 1})`}
                           </Button>
                           <Button
                             size="sm"
