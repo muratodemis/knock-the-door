@@ -64,6 +64,8 @@ export default function BossPage() {
   const [refreshToken, setRefreshToken] = useState<string | null>(null);
   const [showToken, setShowToken] = useState(false);
   const [tokenCopied, setTokenCopied] = useState(false);
+  const [calComUrl, setCalComUrl] = useState("cal.com/muratodemis");
+  const [calComSaved, setCalComSaved] = useState(false);
 
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
   const [chatInputs, setChatInputs] = useState<Record<string, string>>({});
@@ -77,6 +79,11 @@ export default function BossPage() {
         setGoogleChecking(false);
       })
       .catch(() => setGoogleChecking(false));
+
+    fetch(`${basePath}/api/calendar/calcom`)
+      .then((r) => r.json())
+      .then((data) => { if (data.calComUrl) setCalComUrl(data.calComUrl); })
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -130,6 +137,19 @@ export default function BossPage() {
       body: JSON.stringify({ calendarId }),
     }).catch(() => {});
   }, []);
+
+  const saveCalComUrl = useCallback(() => {
+    fetch(`${basePath}/api/calendar/calcom`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ calComUrl }),
+    })
+      .then(() => {
+        setCalComSaved(true);
+        setTimeout(() => setCalComSaved(false), 2000);
+      })
+      .catch(() => {});
+  }, [calComUrl]);
 
   useEffect(() => {
     const socket = getSocket();
@@ -615,6 +635,64 @@ export default function BossPage() {
                   )}
                 </div>
               )}
+
+              {/* Cal.com booking config */}
+              <Card className="mt-3">
+                <CardContent className="p-4 sm:p-5">
+                  <h3 className="text-sm font-medium text-foreground mb-2">Randevu Linki (Cal.com)</h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Calisanlar bu link uzerinden sizinle gorusme planlayabilir.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={calComUrl}
+                      onChange={(e) => setCalComUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveCalComUrl()}
+                      placeholder="cal.com/kullaniciadi"
+                      className="h-8 text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs px-3 flex-shrink-0"
+                      onClick={saveCalComUrl}
+                    >
+                      {calComSaved ? "Kaydedildi!" : "Kaydet"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Cal.com config when Google not connected */}
+          {!googleChecking && !googleConnected && (
+            <div className="lg:col-span-4">
+              <Card>
+                <CardContent className="p-4 sm:p-5">
+                  <h3 className="text-sm font-medium text-foreground mb-2">Randevu Linki (Cal.com)</h3>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Calisanlar bu link uzerinden sizinle gorusme planlayabilir.
+                  </p>
+                  <div className="flex gap-2">
+                    <Input
+                      value={calComUrl}
+                      onChange={(e) => setCalComUrl(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && saveCalComUrl()}
+                      placeholder="cal.com/kullaniciadi"
+                      className="h-8 text-xs"
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 text-xs px-3 flex-shrink-0"
+                      onClick={saveCalComUrl}
+                    >
+                      {calComSaved ? "Kaydedildi!" : "Kaydet"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
         </div>

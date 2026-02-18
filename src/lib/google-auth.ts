@@ -27,7 +27,8 @@ interface StoredTokens {
 }
 
 interface CalendarSettings {
-  selectedCalendarId: string;
+  selectedCalendarId?: string;
+  calComUrl?: string;
 }
 
 let memoryTokens: StoredTokens | null = null;
@@ -242,23 +243,40 @@ export async function getTodayBusySlots(calendarId?: string): Promise<BusySlot[]
     }));
 }
 
-export function getSelectedCalendarId(): string | null {
-  if (memorySettings) return memorySettings.selectedCalendarId;
+function readSettings(): CalendarSettings {
+  if (memorySettings) return memorySettings;
   try {
     if (fs.existsSync(SETTINGS_PATH)) {
       const data = fs.readFileSync(SETTINGS_PATH, "utf-8");
       memorySettings = JSON.parse(data);
-      return memorySettings!.selectedCalendarId;
+      return memorySettings!;
     }
   } catch {}
-  return null;
+  return {};
 }
 
-export function setSelectedCalendarId(id: string) {
-  memorySettings = { selectedCalendarId: id };
+function writeSettings(patch: Partial<CalendarSettings>) {
+  const current = readSettings();
+  memorySettings = { ...current, ...patch };
   try {
     fs.writeFileSync(SETTINGS_PATH, JSON.stringify(memorySettings, null, 2));
   } catch (e) {
     console.error("writeSettings file error (using memory only):", e);
   }
+}
+
+export function getSelectedCalendarId(): string | null {
+  return readSettings().selectedCalendarId ?? null;
+}
+
+export function setSelectedCalendarId(id: string) {
+  writeSettings({ selectedCalendarId: id });
+}
+
+export function getCalComUrl(): string | null {
+  return readSettings().calComUrl ?? null;
+}
+
+export function setCalComUrl(url: string) {
+  writeSettings({ calComUrl: url });
 }

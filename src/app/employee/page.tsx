@@ -12,6 +12,8 @@ import {
   X,
   Clock,
   Users,
+  CalendarPlus,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,6 +44,8 @@ interface QueueStats {
 type BossStatus = "available" | "busy" | "away" | "in-meeting";
 type KnockState = "idle" | "knocking" | "waiting" | "accepted" | "declined";
 
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
+
 export default function EmployeePage() {
   const [name, setName] = useState("");
   const [nameSubmitted, setNameSubmitted] = useState(false);
@@ -56,10 +60,18 @@ export default function EmployeePage() {
   const [queueInfo, setQueueInfo] = useState<QueueInfo | null>(null);
   const [queueStats, setQueueStats] = useState<QueueStats | null>(null);
   const [meetingWith, setMeetingWith] = useState<string | null>(null);
+  const [calComUrl, setCalComUrl] = useState<string | null>(null);
 
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    fetch(`${basePath}/api/calendar/calcom`)
+      .then((r) => r.json())
+      .then((data) => { if (data.calComUrl) setCalComUrl(data.calComUrl); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const socket = getSocket();
@@ -439,7 +451,35 @@ export default function EmployeePage() {
                 </CardContent>
               </Card>
 
-              <CalendarWidget />
+              <div className="space-y-4">
+                <CalendarWidget />
+
+                {calComUrl && (
+                  <Card>
+                    <CardContent className="p-4 sm:p-5">
+                      <div className="flex items-center gap-2 mb-3">
+                        <CalendarPlus className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm font-medium text-foreground">Randevu Al</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Yoneticiyle ilerisi icin bir gorusme planlayabilirsiniz.
+                      </p>
+                      <a
+                        href={calComUrl.startsWith("http") ? calComUrl : `https://${calComUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block"
+                      >
+                        <Button variant="outline" size="sm" className="w-full gap-2 text-xs">
+                          <CalendarPlus className="w-3.5 h-3.5" />
+                          Uygun zamani sec
+                          <ExternalLink className="w-3 h-3 ml-auto opacity-50" />
+                        </Button>
+                      </a>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
             </div>
           )}
 
