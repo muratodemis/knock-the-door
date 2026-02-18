@@ -31,17 +31,23 @@ interface CalendarSettings {
   calComUrl?: string;
 }
 
-let memoryTokens: StoredTokens | null = null;
-let memorySettings: CalendarSettings | null = null;
-let bootstrapped = false;
+const G = globalThis as any;
+if (!G.__ktd) G.__ktd = { tokens: null, settings: null, bootstrapped: false };
+
+function getMemTokens(): StoredTokens | null { return G.__ktd.tokens; }
+function setMemTokens(v: StoredTokens | null) { G.__ktd.tokens = v; }
+function getMemSettings(): CalendarSettings | null { return G.__ktd.settings; }
+function setMemSettings(v: CalendarSettings | null) { G.__ktd.settings = v; }
+function isBootstrapped(): boolean { return G.__ktd.bootstrapped; }
+function markBootstrapped() { G.__ktd.bootstrapped = true; }
 
 async function bootstrapFromEnv() {
-  if (bootstrapped) return;
-  bootstrapped = true;
+  if (isBootstrapped()) return;
+  markBootstrapped();
 
   const envRefresh = process.env.GOOGLE_REFRESH_TOKEN;
   if (!envRefresh) return;
-  if (memoryTokens) return;
+  if (getMemTokens()) return;
 
   try {
     if (fs.existsSync(TOKEN_PATH)) return;
@@ -64,12 +70,14 @@ async function bootstrapFromEnv() {
 }
 
 function readTokens(): StoredTokens | null {
-  if (memoryTokens) return memoryTokens;
+  const mem = getMemTokens();
+  if (mem) return mem;
   try {
     if (fs.existsSync(TOKEN_PATH)) {
       const data = fs.readFileSync(TOKEN_PATH, "utf-8");
-      memoryTokens = JSON.parse(data);
-      return memoryTokens;
+      const parsed = JSON.parse(data);
+      setMemTokens(parsed);
+      return parsed;
     }
   } catch (e) {
     console.error("readTokens error:", e);
@@ -78,7 +86,7 @@ function readTokens(): StoredTokens | null {
 }
 
 function writeTokens(tokens: StoredTokens) {
-  memoryTokens = tokens;
+  setMemTokens(tokens);
   try {
     fs.writeFileSync(TOKEN_PATH, JSON.stringify(tokens, null, 2));
   } catch (e) {
@@ -87,7 +95,7 @@ function writeTokens(tokens: StoredTokens) {
 }
 
 function deleteTokens() {
-  memoryTokens = null;
+  setMemTokens(null);
   try {
     if (fs.existsSync(TOKEN_PATH)) {
       fs.unlinkSync(TOKEN_PATH);
@@ -244,12 +252,14 @@ export async function getTodayBusySlots(calendarId?: string): Promise<BusySlot[]
 }
 
 function readSettings(): CalendarSettings {
-  if (memorySettings) return memorySettings;
+  const mem = getMemSettings();
+  if (mem) return mem;
   try {
     if (fs.existsSync(SETTINGS_PATH)) {
       const data = fs.readFileSync(SETTINGS_PATH, "utf-8");
-      memorySettings = JSON.parse(data);
-      return memorySettings!;
+      const parsed = JSON.parse(data);
+      setMemSettings(parsed);
+      return parsed;
     }
   } catch {}
   return {};
@@ -257,9 +267,10 @@ function readSettings(): CalendarSettings {
 
 function writeSettings(patch: Partial<CalendarSettings>) {
   const current = readSettings();
-  memorySettings = { ...current, ...patch };
+  const merged = { ...current, ...patch };
+  setMemSettings(merged);
   try {
-    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(memorySettings, null, 2));
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(merged, null, 2));
   } catch (e) {
     console.error("writeSettings file error (using memory only):", e);
   }
