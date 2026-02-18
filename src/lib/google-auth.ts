@@ -32,6 +32,35 @@ interface CalendarSettings {
 
 let memoryTokens: StoredTokens | null = null;
 let memorySettings: CalendarSettings | null = null;
+let bootstrapped = false;
+
+async function bootstrapFromEnv() {
+  if (bootstrapped) return;
+  bootstrapped = true;
+
+  const envRefresh = process.env.GOOGLE_REFRESH_TOKEN;
+  if (!envRefresh) return;
+  if (memoryTokens) return;
+
+  try {
+    if (fs.existsSync(TOKEN_PATH)) return;
+  } catch {}
+
+  try {
+    oauth2Client.setCredentials({ refresh_token: envRefresh });
+    const { credentials } = await oauth2Client.refreshAccessToken();
+    const tokens: StoredTokens = {
+      access_token: credentials.access_token!,
+      refresh_token: credentials.refresh_token ?? envRefresh,
+      expiry_date: credentials.expiry_date ?? undefined,
+    };
+    writeTokens(tokens);
+    oauth2Client.setCredentials(tokens);
+    console.log("Bootstrapped Google auth from GOOGLE_REFRESH_TOKEN env var");
+  } catch (e) {
+    console.error("Failed to bootstrap from GOOGLE_REFRESH_TOKEN:", e);
+  }
+}
 
 function readTokens(): StoredTokens | null {
   if (memoryTokens) return memoryTokens;
@@ -100,6 +129,15 @@ export async function handleCallback(code: string) {
 
 export function isAuthenticated(): boolean {
   return readTokens() !== null;
+}
+
+export async function ensureBootstrapped() {
+  await bootstrapFromEnv();
+}
+
+export function getRefreshToken(): string | null {
+  const tokens = readTokens();
+  return tokens?.refresh_token ?? null;
 }
 
 export function clearTokens() {

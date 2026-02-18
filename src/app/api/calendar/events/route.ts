@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
-import { isAuthenticated, getTodayBusySlots } from "@/lib/google-auth";
+import { isAuthenticated, getTodayBusySlots, ensureBootstrapped } from "@/lib/google-auth";
 
 export async function GET() {
+  await ensureBootstrapped();
   if (!isAuthenticated()) {
     return NextResponse.json({ slots: [], connected: false });
   }

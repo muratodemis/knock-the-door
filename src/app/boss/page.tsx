@@ -61,6 +61,9 @@ export default function BossPage() {
   const [calendars, setCalendars] = useState<{ id: string; name: string; primary: boolean }[]>([]);
   const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
   const [calendarLoading, setCalendarLoading] = useState(false);
+  const [refreshToken, setRefreshToken] = useState<string | null>(null);
+  const [showToken, setShowToken] = useState(false);
+  const [tokenCopied, setTokenCopied] = useState(false);
 
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
   const [chatInputs, setChatInputs] = useState<Record<string, string>>({});
@@ -83,11 +86,9 @@ export default function BossPage() {
         .then((res) => res.json())
         .then((data) => {
           setGoogleConnected(data.authenticated);
-          if (!data.authenticated) setGoogleConnected(true);
           setGoogleChecking(false);
         })
         .catch(() => {
-          setGoogleConnected(true);
           setGoogleChecking(false);
         });
       window.history.replaceState({}, "", `${basePath}/boss`);
@@ -105,8 +106,9 @@ export default function BossPage() {
     Promise.all([
       fetch(`${basePath}/api/calendar/list`).then((r) => r.json()),
       fetch(`${basePath}/api/calendar/settings`).then((r) => r.json()),
+      fetch(`${basePath}/api/auth/token-info`).then((r) => r.json()).catch(() => null),
     ])
-      .then(([listData, settingsData]) => {
+      .then(([listData, settingsData, tokenData]) => {
         if (listData.calendars) setCalendars(listData.calendars);
         if (settingsData.selectedCalendarId) {
           setSelectedCalendar(settingsData.selectedCalendarId);
@@ -114,6 +116,7 @@ export default function BossPage() {
           const primary = listData.calendars.find((c: any) => c.primary);
           setSelectedCalendar(primary?.id || listData.calendars[0].id);
         }
+        if (tokenData?.refreshToken) setRefreshToken(tokenData.refreshToken);
         setCalendarLoading(false);
       })
       .catch(() => setCalendarLoading(false));
@@ -579,6 +582,39 @@ export default function BossPage() {
                 </div>
               )}
               <CalendarWidget />
+
+              {refreshToken && !process.env.NEXT_PUBLIC_HAS_REFRESH_ENV && (
+                <div className="mt-3">
+                  <button
+                    onClick={() => setShowToken((v) => !v)}
+                    className="text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {showToken ? "Token'i gizle" : "Kalici baglanti icin token'i goster"}
+                  </button>
+                  {showToken && (
+                    <div className="mt-2 p-2.5 bg-secondary rounded-md">
+                      <p className="text-[10px] text-muted-foreground mb-1.5">
+                        Bu refresh token'i Railway'de <code className="text-foreground">GOOGLE_REFRESH_TOKEN</code> ortam degiskeni olarak kaydedin. Boylece deploy sonrasi tekrar giris gerekmez.
+                      </p>
+                      <div className="flex gap-1.5">
+                        <code className="text-[10px] bg-background border border-input rounded px-2 py-1 flex-1 break-all select-all max-h-20 overflow-y-auto">
+                          {refreshToken}
+                        </code>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(refreshToken);
+                            setTokenCopied(true);
+                            setTimeout(() => setTokenCopied(false), 2000);
+                          }}
+                          className="text-[10px] px-2 py-1 bg-foreground text-background rounded hover:opacity-90 flex-shrink-0 self-start"
+                        >
+                          {tokenCopied ? "Kopyalandi!" : "Kopyala"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>
