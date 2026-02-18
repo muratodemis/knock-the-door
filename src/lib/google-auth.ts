@@ -6,6 +6,10 @@ const TOKEN_PATH = process.env.NODE_ENV === "production"
   ? "/tmp/.google-tokens.json"
   : path.join(process.cwd(), ".google-tokens.json");
 
+const SETTINGS_PATH = process.env.NODE_ENV === "production"
+  ? "/tmp/.calendar-settings.json"
+  : path.join(process.cwd(), ".calendar-settings.json");
+
 const redirectUri = process.env.NODE_ENV === "production"
   ? "https://murat.org/knock/api/auth/callback"
   : "http://localhost:3012/api/auth/callback";
@@ -22,8 +26,12 @@ interface StoredTokens {
   expiry_date?: number;
 }
 
-// In-memory cache + file backup (both needed for Railway)
+interface CalendarSettings {
+  selectedCalendarId: string;
+}
+
 let memoryTokens: StoredTokens | null = null;
+let memorySettings: CalendarSettings | null = null;
 
 function readTokens(): StoredTokens | null {
   if (memoryTokens) return memoryTokens;
@@ -61,7 +69,7 @@ export function getAuthUrl(): string {
   return oauth2Client.generateAuthUrl({
     access_type: "offline",
     prompt: "consent",
-    scope: ["https://www.googleapis.com/auth/calendar.events"],
+    scope: ["https://www.googleapis.com/auth/calendar"],
   });
 }
 
@@ -99,11 +107,9 @@ export function clearTokens() {
   oauth2Client.revokeCredentials().catch(() => {});
 }
 
-export async function createGoogleMeet(): Promise<string> {
+async function ensureFreshAuth() {
   const storedTokens = readTokens();
-  if (!storedTokens) {
-    throw new Error("Not authenticated");
-  }
+  if (!storedTokens) throw new Error("Not authenticated");
 
   oauth2Client.setCredentials(storedTokens);
 
@@ -117,6 +123,10 @@ export async function createGoogleMeet(): Promise<string> {
     writeTokens(refreshed);
     oauth2Client.setCredentials(refreshed);
   }
+}
+
+export async function createGoogleMeet(): Promise<string> {
+  await ensureFreshAuth();
 
   const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
@@ -148,4 +158,69 @@ export async function createGoogleMeet(): Promise<string> {
   }
 
   return meetLink;
+}
+
+export async function listCalendars() {
+  await ensureFreshAuth();
+
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+  const res = await calendar.calendarList.list();
+
+  return (res.data.items || []).map((cal) => ({
+    id: cal.id!,
+    name: cal.summary || cal.id!,
+    primary: cal.primary || false,
+  }));
+}
+
+export interface BusySlot {
+  start: string;
+  end: string;
+}
+
+export async function getTodayBusySlots(calendarId?: string): Promise<BusySlot[]> {
+  await ensureFreshAuth();
+
+  const targetCalendar = calendarId || getSelectedCalendarId() || "primary";
+  const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+  const now = new Date();
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
+  const endOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+
+  const res = await calendar.events.list({
+    calendarId: targetCalendar,
+    timeMin: startOfDay.toISOString(),
+    timeMax: endOfDay.toISOString(),
+    singleEvents: true,
+    orderBy: "startTime",
+  });
+
+  return (res.data.items || [])
+    .filter((event) => event.start?.dateTime && event.end?.dateTime)
+    .map((event) => ({
+      start: event.start!.dateTime!,
+      end: event.end!.dateTime!,
+    }));
+}
+
+export function getSelectedCalendarId(): string | null {
+  if (memorySettings) return memorySettings.selectedCalendarId;
+  try {
+    if (fs.existsSync(SETTINGS_PATH)) {
+      const data = fs.readFileSync(SETTINGS_PATH, "utf-8");
+      memorySettings = JSON.parse(data);
+      return memorySettings!.selectedCalendarId;
+    }
+  } catch {}
+  return null;
+}
+
+export function setSelectedCalendarId(id: string) {
+  memorySettings = { selectedCalendarId: id };
+  try {
+    fs.writeFileSync(SETTINGS_PATH, JSON.stringify(memorySettings, null, 2));
+  } catch (e) {
+    console.error("writeSettings file error (using memory only):", e);
+  }
 }

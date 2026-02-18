@@ -18,6 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import CalendarWidget from "@/components/calendar-widget";
 import Link from "next/link";
 
 interface KnockRequest {
@@ -57,6 +58,10 @@ export default function BossPage() {
   const [processingKnockId, setProcessingKnockId] = useState<string | null>(null);
   const [meetError, setMeetError] = useState<string | null>(null);
 
+  const [calendars, setCalendars] = useState<{ id: string; name: string; primary: boolean }[]>([]);
+  const [selectedCalendar, setSelectedCalendar] = useState<string | null>(null);
+  const [calendarLoading, setCalendarLoading] = useState(false);
+
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
   const [chatInputs, setChatInputs] = useState<Record<string, string>>({});
   const chatEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
@@ -92,6 +97,35 @@ export default function BossPage() {
       setMeetError(`Google baglanti hatasi: ${decodeURIComponent(errParam)}`);
       window.history.replaceState({}, "", `${basePath}/boss`);
     }
+  }, []);
+
+  useEffect(() => {
+    if (!googleConnected || googleChecking) return;
+    setCalendarLoading(true);
+    Promise.all([
+      fetch(`${basePath}/api/calendar/list`).then((r) => r.json()),
+      fetch(`${basePath}/api/calendar/settings`).then((r) => r.json()),
+    ])
+      .then(([listData, settingsData]) => {
+        if (listData.calendars) setCalendars(listData.calendars);
+        if (settingsData.selectedCalendarId) {
+          setSelectedCalendar(settingsData.selectedCalendarId);
+        } else if (listData.calendars?.length) {
+          const primary = listData.calendars.find((c: any) => c.primary);
+          setSelectedCalendar(primary?.id || listData.calendars[0].id);
+        }
+        setCalendarLoading(false);
+      })
+      .catch(() => setCalendarLoading(false));
+  }, [googleConnected, googleChecking]);
+
+  const saveCalendarSelection = useCallback((calendarId: string) => {
+    setSelectedCalendar(calendarId);
+    fetch(`${basePath}/api/calendar/settings`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ calendarId }),
+    }).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -378,6 +412,29 @@ export default function BossPage() {
               </p>
             </CardContent>
           </Card>
+        )}
+
+        {/* Calendar Section */}
+        {!googleChecking && googleConnected && (
+          <div className="mb-4 sm:mb-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-medium text-foreground">Takvim</h2>
+              {calendars.length > 0 && (
+                <select
+                  value={selectedCalendar || ""}
+                  onChange={(e) => saveCalendarSelection(e.target.value)}
+                  className="text-xs border border-input rounded-md px-2 py-1 bg-background text-foreground"
+                >
+                  {calendars.map((cal) => (
+                    <option key={cal.id} value={cal.id}>
+                      {cal.name}{cal.primary ? " (Ana)" : ""}
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+            <CalendarWidget />
+          </div>
         )}
 
         {/* Knock Requests / Queue */}

@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import CalendarWidget from "@/components/calendar-widget";
 import Link from "next/link";
 
 interface ChatMessage {
@@ -268,107 +269,114 @@ export default function EmployeePage() {
       )}
 
       <main className="flex-1 flex items-center justify-center px-4 sm:px-6 py-6 sm:py-8">
-        <div className="max-w-md w-full">
-          {/* Idle - Knock door */}
+        <div className={cn(
+          "w-full",
+          knockState === "idle" ? "max-w-3xl" : "max-w-md"
+        )}>
+          {/* Idle - Knock door + Calendar */}
           {knockState === "idle" && (
-            <Card>
-              <CardContent className="p-5 sm:p-6">
-                <div className="text-center mb-5 sm:mb-6">
-                  <div className="w-14 h-14 rounded-2xl bg-secondary text-foreground flex items-center justify-center mx-auto mb-4">
-                    <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                      <polyline points="9 22 9 12 15 12 15 22" />
-                    </svg>
-                  </div>
-                  <h2 className="text-lg font-semibold text-foreground mb-1">Kapiyi Calin</h2>
-                  <p className="text-sm text-muted-foreground">
-                    Yoneticinizle gorusme talebinde bulunun
-                  </p>
-                </div>
-
-                {/* Queue status info */}
-                {queueStats && queueStats.totalInQueue > 0 && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 sm:mb-6">
-                    <div className="flex items-center gap-2 mb-1">
-                      <Users className="w-4 h-4 text-amber-600" />
-                      <span className="text-sm font-medium text-amber-900">
-                        Sirada {queueStats.totalInQueue} kisi bekliyor
-                      </span>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              <Card>
+                <CardContent className="p-5 sm:p-6">
+                  <div className="text-center mb-5 sm:mb-6">
+                    <div className="w-14 h-14 rounded-2xl bg-secondary text-foreground flex items-center justify-center mx-auto mb-4">
+                      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+                        <polyline points="9 22 9 12 15 12 15 22" />
+                      </svg>
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-amber-700">
-                      <Clock className="w-3 h-3" />
-                      Simdi siraya girerseniz tahmini bekleme: ~{queueStats.estimatedWaitForNew || 1} dk
-                    </div>
+                    <h2 className="text-lg font-semibold text-foreground mb-1">Kapiyi Calin</h2>
+                    <p className="text-sm text-muted-foreground">
+                      Yoneticinizle gorusme talebinde bulunun
+                    </p>
                   </div>
-                )}
 
-                {queueStats && queueStats.totalInQueue === 0 && bossStatus !== "away" && (
-                  <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-5 sm:mb-6">
-                    <div className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                      <span className="text-sm font-medium text-emerald-800">
-                        Sira bos, hemen gorusebilirsiniz
-                      </span>
+                  {/* Queue status info */}
+                  {queueStats && queueStats.totalInQueue > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 mb-5 sm:mb-6">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Users className="w-4 h-4 text-amber-600" />
+                        <span className="text-sm font-medium text-amber-900">
+                          Sirada {queueStats.totalInQueue} kisi bekliyor
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-xs text-amber-700">
+                        <Clock className="w-3 h-3" />
+                        Simdi siraya girerseniz tahmini bekleme: ~{queueStats.estimatedWaitForNew || 1} dk
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div className="space-y-3">
-                  <Textarea
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="Mesajiniz (opsiyonel)..."
-                    rows={2}
-                    className="text-sm"
-                  />
+                  {queueStats && queueStats.totalInQueue === 0 && bossStatus !== "away" && (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-4 py-3 mb-5 sm:mb-6">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                        <span className="text-sm font-medium text-emerald-800">
+                          Sira bos, kabul ederse hemen gorusebilirsiniz
+                        </span>
+                      </div>
+                    </div>
+                  )}
 
-                  <div>
-                    <label className="text-xs text-muted-foreground mb-1.5 block">
-                      Tahmini gorusme suresi (opsiyonel)
-                    </label>
-                    <select
-                      value={estimatedDuration}
-                      onChange={(e) => setEstimatedDuration(e.target.value)}
-                      className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                  <div className="space-y-3">
+                    <Textarea
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="Mesajiniz (opsiyonel)..."
+                      rows={2}
+                      className="text-sm"
+                    />
+
+                    <div>
+                      <label className="text-xs text-muted-foreground mb-1.5 block">
+                        Tahmini gorusme suresi (opsiyonel)
+                      </label>
+                      <select
+                        value={estimatedDuration}
+                        onChange={(e) => setEstimatedDuration(e.target.value)}
+                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                      >
+                        <option value="">Belirtilmemis</option>
+                        <option value="5">5 dakika</option>
+                        <option value="10">10 dakika</option>
+                        <option value="15">15 dakika</option>
+                        <option value="30">30 dakika</option>
+                        <option value="45">45 dakika</option>
+                        <option value="60">1 saat</option>
+                      </select>
+                    </div>
+
+                    <Button
+                      onClick={knockDoor}
+                      disabled={bossStatus === "away"}
+                      className="w-full gap-2"
+                      size="lg"
                     >
-                      <option value="">Belirtilmemis</option>
-                      <option value="5">5 dakika</option>
-                      <option value="10">10 dakika</option>
-                      <option value="15">15 dakika</option>
-                      <option value="30">30 dakika</option>
-                      <option value="45">45 dakika</option>
-                      <option value="60">1 saat</option>
-                    </select>
-                  </div>
-
-                  <Button
-                    onClick={knockDoor}
-                    disabled={bossStatus === "away"}
-                    className="w-full gap-2"
-                    size="lg"
-                  >
-                    {bossStatus === "away" ? (
-                      "Yonetici Uzakta"
-                    ) : (
-                      <>
-                        <Volume2 className="w-4 h-4" />
-                        Kapiyi Cal
-                      </>
+                      {bossStatus === "away" ? (
+                        "Yonetici Uzakta"
+                      ) : (
+                        <>
+                          <Volume2 className="w-4 h-4" />
+                          Kapiyi Cal
+                        </>
+                      )}
+                    </Button>
+                    {bossStatus === "busy" && (
+                      <p className="text-center text-xs text-amber-600">
+                        Yonetici mesgul, ancak kapiyi calabilirsiniz.
+                      </p>
                     )}
-                  </Button>
-                  {bossStatus === "busy" && (
-                    <p className="text-center text-xs text-amber-600">
-                      Yonetici mesgul, ancak kapiyi calabilirsiniz.
-                    </p>
-                  )}
-                  {bossStatus === "in-meeting" && (
-                    <p className="text-center text-xs text-amber-600">
-                      Yonetici gorusmede, ancak siraya girebilirsiniz.
-                    </p>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+                    {bossStatus === "in-meeting" && (
+                      <p className="text-center text-xs text-amber-600">
+                        Yonetici gorusmede, ancak siraya girebilirsiniz.
+                      </p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <CalendarWidget />
+            </div>
           )}
 
           {/* Knocking */}
