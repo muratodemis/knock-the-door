@@ -19,6 +19,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import CalendarWidget from "@/components/calendar-widget";
+import PixelRoom from "@/components/pixel-room";
 import Link from "next/link";
 
 interface KnockRequest {
@@ -401,8 +402,11 @@ export default function BossPage() {
 
         {/* Status Control */}
         {status !== "in-meeting" && (
-          <Card className="mb-4 sm:mb-6">
-            <CardContent className="p-4 sm:p-5">
+          <Card className="mb-4 sm:mb-6 overflow-hidden">
+            <div className="bg-[#1a1b26]">
+              <PixelRoom status={status} className="mx-auto max-w-[520px]" />
+            </div>
+            <CardContent className="p-4 sm:p-5 border-t">
               <div className="flex items-center justify-between mb-3 sm:mb-4">
                 <h2 className="text-sm font-medium text-foreground">Kapi Durumu</h2>
                 <Badge variant={statusConfig[status].variant}>

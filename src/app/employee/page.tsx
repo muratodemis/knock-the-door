@@ -22,6 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import CalendarWidget from "@/components/calendar-widget";
+import PixelRoom from "@/components/pixel-room";
 import Link from "next/link";
 
 interface ChatMessage {
@@ -366,16 +367,33 @@ export default function EmployeePage() {
         )}>
           {/* Idle - Knock door + Calendar */}
           {knockState === "idle" && (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+            <div className="space-y-4">
+              {/* Pixel Room - Boss Office */}
+              <Card className="overflow-hidden">
+                <CardContent className="p-0">
+                  <div className="bg-[#1a1b26] rounded-t-lg">
+                    <PixelRoom status={bossStatus} className="mx-auto max-w-md" />
+                  </div>
+                  <div className="px-4 py-3 flex items-center justify-between border-t">
+                    <div className="flex items-center gap-2">
+                      <span className={cn(
+                        "w-2 h-2 rounded-full",
+                        statusConfig[bossStatus].dotColor,
+                        bossStatus === "available" && "animate-pulse"
+                      )} />
+                      <span className="text-sm font-medium text-foreground">
+                        Yonetici: {statusConfig[bossStatus].label}
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted-foreground">Canli</span>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
               <Card>
                 <CardContent className="p-5 sm:p-6">
                   <div className="text-center mb-5 sm:mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-secondary text-foreground flex items-center justify-center mx-auto mb-4">
-                      <svg className="w-7 h-7" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-                        <polyline points="9 22 9 12 15 12 15 22" />
-                      </svg>
-                    </div>
                     <h2 className="text-lg font-semibold text-foreground mb-1">Kapiyi Calin</h2>
                     <p className="text-sm text-muted-foreground">
                       Yoneticinizle gorusme talebinde bulunun
@@ -480,6 +498,7 @@ export default function EmployeePage() {
                   </Card>
                 )}
               </div>
+            </div>
             </div>
           )}
 
