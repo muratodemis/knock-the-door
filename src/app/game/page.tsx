@@ -463,8 +463,6 @@ export default function GamePage(){
       gs.bossWalkX+=(targetX-gs.bossWalkX)*0.08;gs.bossWalkY+=(targetY-gs.bossWalkY)*0.08;
       if(Math.abs(gs.bossWalkX-targetX)<2&&Math.abs(gs.bossWalkY-targetY)<2){gs.bossAtDoor=true;gs.doorOpen=true;}
     }
-    // celebration countdown
-    if(gs.celebrateT>0)gs.celebrateT--;
 
     if(gs.scene==="door"&&!gs.prompt){gs.walking=true;gs.dir="up";gs.px+=(157-gs.px)*0.12;if(gs.py>134)gs.py-=3;else{gs.prompt=true;gs.walking=false;gs.dir="up";}}
     if(gs.scene==="enter"&&gs.py>70){gs.py-=4;gs.walking=true;gs.dir="up";}
