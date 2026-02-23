@@ -478,6 +478,7 @@ export default function GamePage(){
   useEffect(()=>{
     if(!nameSubmitted)return;
     const down=(e:KeyboardEvent)=>{
+      if(["ArrowUp","ArrowDown","ArrowLeft","ArrowRight"," "].includes(e.key))e.preventDefault();
       keysRef.current.add(e.key);const gs=gsRef.current;const ks=knockStateRef.current;
       if(e.key===" "||e.key==="Enter"){e.preventDefault();
         if(gs.miniGame==="bilardo"){const tv=poolRef.current.balls.reduce((s,b)=>s+Math.abs(b.vx)+Math.abs(b.vy),0);if(tv<0.5)gs.cueCharging=true;return;}
