@@ -616,6 +616,18 @@ export default function EmployeePage() {
                       </Button>
                     )}
 
+                    {/* Kapıyı Zorla - when busy or in-meeting */}
+                    {(bossStatus === "busy" || bossStatus === "in-meeting") && (
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2 border-red-200 text-red-500 hover:bg-red-50 hover:text-red-600"
+                        size="lg"
+                        onClick={() => { setShowZorla(true); setTimeout(() => setShowZorla(false), 3000); }}
+                      >
+                        Kapiyi Zorla
+                      </Button>
+                    )}
+
                     {/* Randevu Al - when busy or away */}
                     {calComUrl && (bossStatus === "busy" || bossStatus === "away") && (
                       <a
