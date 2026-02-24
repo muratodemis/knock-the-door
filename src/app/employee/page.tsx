@@ -67,6 +67,7 @@ export default function EmployeePage() {
   const [chatInput, setChatInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement | null>(null);
   const [showKnockConfirm, setShowKnockConfirm] = useState(false);
+  const [showZorla, setShowZorla] = useState(false);
 
   // Quiz data
   const quiz1Data = [
@@ -479,6 +480,12 @@ export default function EmployeePage() {
           <div className="max-w-5xl mx-auto flex items-center justify-center gap-2 text-sm text-red-700">
             <Video className="w-3.5 h-3.5" />
             <span>Yonetici su an <strong>{meetingWith}</strong> ile gorusmede</span>
+            <button
+              onClick={() => { setShowZorla(true); setTimeout(() => setShowZorla(false), 3000); }}
+              className="ml-2 text-[10px] text-red-400 hover:text-red-600 transition-colors underline"
+            >
+              Kapiyi zorla
+            </button>
           </div>
         </div>
       )}
@@ -702,6 +709,12 @@ export default function EmployeePage() {
                       </span>
                     </div>
                   )}
+                  <button
+                    onClick={() => { setShowZorla(true); setTimeout(() => setShowZorla(false), 3000); }}
+                    className="mt-3 text-[10px] text-muted-foreground/50 hover:text-muted-foreground transition-colors"
+                  >
+                    Kapiyi zorla
+                  </button>
                 </div>
 
                 {/* Chat */}
@@ -812,6 +825,20 @@ export default function EmployeePage() {
           )}
         </div>
       </main>
+
+      {/* Zorla overlay */}
+      {showZorla && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 animate-in fade-in duration-300 cursor-pointer"
+          onClick={() => setShowZorla(false)}
+        >
+          <img
+            src="/zorla.png"
+            alt="Lütfen açar mısınız efendim kapıyı?"
+            className="max-w-[90vw] max-h-[80vh] rounded-xl shadow-2xl animate-in zoom-in-90 duration-300"
+          />
+        </div>
+      )}
     </div>
   );
 }
