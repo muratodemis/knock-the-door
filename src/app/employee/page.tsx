@@ -468,7 +468,7 @@ export default function EmployeePage() {
               {statusConfig[bossStatus].label}
             </Badge>
             <Link
-              href={`${basePath}/game`}
+              href="/knock/game"
               className="relative px-2.5 py-1 text-[10px] sm:text-[11px] font-bold tracking-wider text-white rounded overflow-hidden transition-transform hover:scale-105 active:scale-95"
               style={{
                 imageRendering: "pixelated",
@@ -482,7 +482,7 @@ export default function EmployeePage() {
               <span className="absolute inset-0 opacity-20" style={{
                 backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.15) 2px, rgba(255,255,255,0.15) 4px)",
               }} />
-              <span className="relative">GAME</span>
+              <span className="relative">GAME MODE</span>
             </Link>
             <div className="flex items-center gap-1.5">
               <div className={cn("w-2 h-2 rounded-full", connected ? "bg-emerald-500" : "bg-red-500")} />
