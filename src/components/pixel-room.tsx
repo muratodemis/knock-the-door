@@ -327,7 +327,7 @@ function render(c: CTX, status: RoomStatus, f: number) {
   if (status !== "away") {
     drawChairBack(c, bx - 1, by);
     const blink = f % 70 > 65;
-    if (status === "busy") {
+    if (status === "busy" || status === "in-meeting") {
       spr(c, bx - 3, by - 2, blink ? BOSS_BLINK : BOSS_BUSY, BPB);
     } else {
       spr(c, bx - 3, by - 2, blink ? BOSS_BLINK : BOSS_IDLE, BP);
@@ -341,7 +341,7 @@ function render(c: CTX, status: RoomStatus, f: number) {
     } else if (status === "busy") {
       if (f % 50 < 38) drawBubble(c, bubX, bubY, "Mesgul", C.stR);
     } else if (status === "in-meeting") {
-      drawBubble(c, bubX, bubY, "Gorusme", C.stY);
+      drawBubble(c, bubX, bubY, "Mesgul", C.stR);
     }
   } else {
     drawChairBack(c, bx - 7, by + 6);

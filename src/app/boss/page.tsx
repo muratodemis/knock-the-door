@@ -280,7 +280,7 @@ export default function BossPage() {
   const statusConfig: Record<BossStatus, { label: string; variant: "success" | "destructive" | "warning"; dotColor: string }> = {
     available: { label: "Musait", variant: "success", dotColor: "bg-emerald-500" },
     busy: { label: "Mesgul", variant: "destructive", dotColor: "bg-red-500" },
-    "in-meeting": { label: "Gorusmede", variant: "destructive", dotColor: "bg-red-500" },
+    "in-meeting": { label: "Mesgul (Gorusmede)", variant: "destructive", dotColor: "bg-red-500" },
     away: { label: "Uzakta", variant: "warning", dotColor: "bg-amber-500" },
   };
 

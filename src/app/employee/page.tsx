@@ -305,7 +305,7 @@ export default function EmployeePage() {
   const statusConfig: Record<BossStatus, { label: string; variant: "success" | "destructive" | "warning"; dotColor: string }> = {
     available: { label: "Musait", variant: "success", dotColor: "bg-emerald-500" },
     busy: { label: "Mesgul", variant: "destructive", dotColor: "bg-red-500" },
-    "in-meeting": { label: "Gorusmede", variant: "destructive", dotColor: "bg-red-500" },
+    "in-meeting": { label: "Mesgul (Gorusmede)", variant: "destructive", dotColor: "bg-red-500" },
     away: { label: "Uzakta", variant: "warning", dotColor: "bg-amber-500" },
   };
 
@@ -331,16 +331,16 @@ export default function EmployeePage() {
         bg: "bg-amber-50 border-amber-200",
         dotColor: "bg-amber-500",
         dotPulse: true,
-        title: "Su an iceride biri var",
+        title: "Yonetici gorusmede, siraya girebilirsiniz",
         titleColor: "text-amber-800",
-        sub: "Bittiginde iceri girmek icin kapiyi cal'a tiklayin",
+        sub: "Gorusme bitince sira size gelecek",
         subColor: "text-amber-600",
       };
       return {
         bg: "bg-red-50 border-red-200",
         dotColor: "bg-red-500",
         dotPulse: true,
-        title: `Su an iceride biri var, sirada ${q} kisi bekliyor`,
+        title: `Yonetici gorusmede, sirada ${q} kisi bekliyor`,
         titleColor: "text-red-900",
         sub: `Tahmini bekleme: ~${wait} dk`,
         subColor: "text-red-700",
@@ -354,7 +354,7 @@ export default function EmployeePage() {
         dotPulse: false,
         title: "Yonetici mesgul, sirada kimse yok",
         titleColor: "text-amber-800",
-        sub: "Kapiyi calabilirsiniz ama calmamanizi tavsiye ederiz :)",
+        sub: "Kapiyi calarak siraya girebilirsiniz",
         subColor: "text-amber-600",
       };
       return {
@@ -467,6 +467,23 @@ export default function EmployeePage() {
               <span className="hidden sm:inline">Yonetici: </span>
               {statusConfig[bossStatus].label}
             </Badge>
+            <Link
+              href={`${basePath}/game`}
+              className="relative px-2.5 py-1 text-[10px] sm:text-[11px] font-bold tracking-wider text-white rounded overflow-hidden transition-transform hover:scale-105 active:scale-95"
+              style={{
+                imageRendering: "pixelated",
+                background: "linear-gradient(135deg, #6366f1 0%, #8b5cf6 40%, #a855f7 70%, #6366f1 100%)",
+                boxShadow: "inset 0 1px 0 rgba(255,255,255,0.3), inset 0 -2px 0 rgba(0,0,0,0.2), 0 2px 4px rgba(99,102,241,0.4)",
+                border: "2px solid #4f46e5",
+                textShadow: "1px 1px 0 rgba(0,0,0,0.4)",
+                fontFamily: "monospace",
+              }}
+            >
+              <span className="absolute inset-0 opacity-20" style={{
+                backgroundImage: "repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,255,255,0.15) 2px, rgba(255,255,255,0.15) 4px)",
+              }} />
+              <span className="relative">GAME</span>
+            </Link>
             <div className="flex items-center gap-1.5">
               <div className={cn("w-2 h-2 rounded-full", connected ? "bg-emerald-500" : "bg-red-500")} />
             </div>
@@ -608,6 +625,11 @@ export default function EmployeePage() {
                       >
                         {bossStatus === "away" ? (
                           "Yonetici Uzakta"
+                        ) : bossStatus === "in-meeting" ? (
+                          <>
+                            <Volume2 className="w-4 h-4" />
+                            Kapiyi Cal (Siraya Al)
+                          </>
                         ) : (
                           <>
                             <Volume2 className="w-4 h-4" />
@@ -629,8 +651,8 @@ export default function EmployeePage() {
                       </Button>
                     )}
 
-                    {/* Randevu Al - when busy or away */}
-                    {calComUrl && (bossStatus === "busy" || bossStatus === "away") && (
+                    {/* Randevu Al - when busy, in-meeting, or away */}
+                    {calComUrl && (bossStatus === "busy" || bossStatus === "in-meeting" || bossStatus === "away") && (
                       <a
                         href={calComUrl.startsWith("http") ? calComUrl : `https://${calComUrl}`}
                         target="_blank"
