@@ -107,29 +107,30 @@ const BPB: Record<string, string> = {
   ...BP, x: C.hpBand, X: C.hp,
 };
 
-// Guest (back of head, 18×16)
+// Guest side profile (facing left, 16w × 20h)
 const GP: Record<string, string> = {
   o: O, h: C.gHair, H: C.gHairL, s: C.skin, S: C.skinD,
-  b: C.gShirt, B: C.gShirtD,
+  e: O, w: "#FFF", m: "#D08878", n: C.skin,
+  b: C.gShirt, B: C.gShirtD, c: "#E08040",
 };
 const GUEST = [
-  "...oooooooooooo...",
-  "..obbBBBBBBBBbo...",
-  "..obbBBBBBBBBbo...",
-  ".os.bBBBBBBBb.so..",
-  ".os.bBBBBBBBb.so..",
-  "..obbBBBBBBBBbo...",
-  "...obbBBBBBBbo....",
-  "....obcBBBBbo.....",
-  ".....obbBBbo......",
-  "......obbbo.......",
-  ".......oso........",
-  "......ossso.......",
-  "....oSssssssSo....",
-  "....ohhhhhhhho....",
-  "....ohhHHHhhho....",
-  ".....ohhhhhho.....",
-  "......oooooo......",
+  "....ooooooo.....",
+  "...ohhhhhhho....",
+  "..ohhhHHhhhho...",
+  "..ohhhhhhhhho...",
+  "..osssssshho....",
+  "..oSwwsSshho....",
+  "..oSeesSssno....",
+  "..oSsssmso......",
+  "...osssso.......",
+  "....oso.........",
+  "...obbbo........",
+  "..obbBBbo.......",
+  ".obBBBBBbs......",
+  ".obBBBBBBbo.....",
+  ".osBBBBBBbo.....",
+  "..obBBBBbo......",
+  "...oooooo.......",
 ];
 
 // ── Drawing ──
@@ -295,12 +296,13 @@ function drawChairSeat(c: CTX, cx: number, cy: number) {
 }
 
 function drawGuestSeat(c: CTX, gx: number, gy: number) {
-  r(c, gx, gy + 18, 18, 3, C.chSeat);
-  r(c, gx + 2, gy + 21, 2, 4, C.chLeg);
-  r(c, gx + 14, gy + 21, 2, 4, C.chLeg);
-  r(c, gx + 0, gy + 25, 4, 2, C.chW);
-  r(c, gx + 14, gy + 25, 4, 2, C.chW);
-  r(c, gx + 1, gy - 6, 16, 6, C.chBack);
+  r(c, gx + 14, gy + 2, 4, 14, C.chBack);
+  r(c, gx + 15, gy + 4, 2, 10, "#4A5260");
+  r(c, gx, gy + 14, 18, 3, C.chSeat);
+  r(c, gx + 1, gy + 17, 2, 5, C.chLeg);
+  r(c, gx + 15, gy + 17, 2, 5, C.chLeg);
+  r(c, gx - 1, gy + 22, 4, 2, C.chW);
+  r(c, gx + 13, gy + 22, 4, 2, C.chW);
 }
 
 // ── Render ──
@@ -349,9 +351,9 @@ function render(c: CTX, status: RoomStatus, f: number) {
   }
 
   if (status === "in-meeting") {
-    const gx = 87, gy = 94;
+    const gx = 34, gy = 62;
     drawGuestSeat(c, gx, gy);
-    spr(c, gx - 3, gy - 2, GUEST, GP);
+    spr(c, gx - 1, gy - 16, GUEST, GP);
   }
 
   if (status === "away") {
