@@ -458,17 +458,8 @@ export default function EmployeePage() {
             <span className="font-medium text-sm text-foreground truncate">{name}</span>
           </div>
           <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
-            <Badge variant={statusConfig[bossStatus].variant} className="text-[11px] px-2 py-0.5">
-              <span className={cn(
-                "w-1.5 h-1.5 rounded-full mr-1.5",
-                statusConfig[bossStatus].dotColor,
-                bossStatus === "available" && "animate-pulse"
-              )} />
-              <span className="hidden sm:inline">Yonetici: </span>
-              {statusConfig[bossStatus].label}
-            </Badge>
             <Link
-              href="/knock/game"
+              href="/game"
               className="relative px-2.5 py-1 text-[10px] sm:text-[11px] font-bold tracking-wider text-white rounded overflow-hidden transition-transform hover:scale-105 active:scale-95"
               style={{
                 imageRendering: "pixelated",
@@ -484,6 +475,15 @@ export default function EmployeePage() {
               }} />
               <span className="relative">GAME MODE</span>
             </Link>
+            <Badge variant={statusConfig[bossStatus].variant} className="text-[11px] px-2 py-0.5">
+              <span className={cn(
+                "w-1.5 h-1.5 rounded-full mr-1.5",
+                statusConfig[bossStatus].dotColor,
+                bossStatus === "available" && "animate-pulse"
+              )} />
+              <span className="hidden sm:inline">Yonetici: </span>
+              {statusConfig[bossStatus].label}
+            </Badge>
             <div className="flex items-center gap-1.5">
               <div className={cn("w-2 h-2 rounded-full", connected ? "bg-emerald-500" : "bg-red-500")} />
             </div>

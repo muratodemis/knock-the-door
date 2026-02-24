@@ -52,14 +52,14 @@ export default function Home() {
             <Link href="/employee" className="w-full sm:w-auto">
               <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2">
                 <Users className="w-4 h-4" />
-                Calisan Girisi
+                Calisan Girisi (Normal Mod)
               </Button>
             </Link>
 
             <Link href="/game" className="w-full sm:w-auto">
               <Button variant="outline" size="lg" className="w-full sm:w-auto gap-2 border-purple-300 text-purple-700 hover:bg-purple-50">
                 <Gamepad2 className="w-4 h-4" />
-                Oyun Modu
+                Calisan Girisi (Oyun Modu)
               </Button>
             </Link>
           </div>
