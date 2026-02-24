@@ -869,7 +869,7 @@ export default function EmployeePage() {
           onClick={() => setShowZorla(false)}
         >
           <img
-            src="/zorla.png"
+            src={`${basePath}/zorla.png`}
             alt="Lütfen açar mısınız efendim kapıyı?"
             className="max-w-[90vw] max-h-[80vh] rounded-xl shadow-2xl animate-in zoom-in-90 duration-300"
           />
