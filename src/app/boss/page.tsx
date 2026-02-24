@@ -71,6 +71,7 @@ export default function BossPage() {
   const [chatMessages, setChatMessages] = useState<Record<string, ChatMessage[]>>({});
   const [chatInputs, setChatInputs] = useState<Record<string, string>>({});
   const chatEndRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const [confirmOpenId, setConfirmOpenId] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`${basePath}/api/auth/status`)
@@ -227,7 +228,12 @@ export default function BossPage() {
     setStatus("available");
   }, []);
 
-  const openDoor = useCallback(async (knockId: string) => {
+  const openDoor = useCallback(async (knockId: string, skipConfirm?: boolean) => {
+    if (status === "in-meeting" && currentMeeting && !skipConfirm) {
+      setConfirmOpenId(knockId);
+      return;
+    }
+    setConfirmOpenId(null);
     setProcessingKnockId(knockId);
     setMeetError(null);
     try {
@@ -239,7 +245,7 @@ export default function BossPage() {
       setMeetError(err.message);
       setProcessingKnockId(null);
     }
-  }, []);
+  }, [status, currentMeeting]);
 
   const declineKnock = useCallback((knockId: string) => {
     getSocket().emit("decline-knock", knockId);
@@ -497,6 +503,24 @@ export default function BossPage() {
                       <p className="text-sm text-muted-foreground bg-secondary rounded-lg px-3 py-2 mb-3">
                         {knock.message}
                       </p>
+                    )}
+
+                    {/* Confirmation when in-meeting */}
+                    {confirmOpenId === knock.id && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 mb-2 space-y-2">
+                        <p className="text-sm text-amber-800 font-medium">
+                          Su an gorusmedesiniz. Kapiyi acmak istediginize emin misiniz?
+                        </p>
+                        <div className="flex gap-2">
+                          <Button onClick={() => openDoor(knock.id, true)} size="sm" className="flex-1 gap-1.5 bg-amber-600 hover:bg-amber-700">
+                            <Video className="w-3.5 h-3.5" />
+                            Evet, Ac
+                          </Button>
+                          <Button onClick={() => setConfirmOpenId(null)} size="sm" variant="outline" className="flex-1">
+                            Vazgec
+                          </Button>
+                        </div>
+                      </div>
                     )}
 
                     <div className="flex gap-2">

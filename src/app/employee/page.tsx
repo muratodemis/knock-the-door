@@ -66,6 +66,7 @@ export default function EmployeePage() {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [chatInput, setChatInput] = useState("");
   const chatEndRef = useRef<HTMLDivElement | null>(null);
+  const [showKnockConfirm, setShowKnockConfirm] = useState(false);
 
   useEffect(() => {
     fetch(`${basePath}/api/calendar/calcom`)
@@ -138,6 +139,11 @@ export default function EmployeePage() {
 
   const knockDoor = useCallback(() => {
     if (bossStatus === "away") return;
+    if (bossStatus === "in-meeting" && !showKnockConfirm) {
+      setShowKnockConfirm(true);
+      return;
+    }
+    setShowKnockConfirm(false);
     setKnockState("knocking");
 
     const socket = getSocket();
@@ -148,7 +154,7 @@ export default function EmployeePage() {
       timestamp: Date.now(),
       estimatedDuration: estimatedDuration ? parseInt(estimatedDuration) : undefined,
     });
-  }, [knockId, name, message, bossStatus, estimatedDuration]);
+  }, [knockId, name, message, bossStatus, estimatedDuration, showKnockConfirm]);
 
   const sendChat = useCallback(() => {
     const text = chatInput.trim();
@@ -207,16 +213,16 @@ export default function EmployeePage() {
         bg: "bg-amber-50 border-amber-200",
         dotColor: "bg-amber-500",
         dotPulse: true,
-        title: "Yonetici gorusmede, sira bos",
+        title: "Su an iceride biri var",
         titleColor: "text-amber-800",
-        sub: "Gorusme bitince ilk siz olursunuz",
+        sub: "Bittiginde iceri girmek icin kapiyi cal'a tiklayin",
         subColor: "text-amber-600",
       };
       return {
         bg: "bg-red-50 border-red-200",
         dotColor: "bg-red-500",
         dotPulse: true,
-        title: `Yonetici gorusmede, sirada ${q} kisi`,
+        title: `Su an iceride biri var, sirada ${q} kisi bekliyor`,
         titleColor: "text-red-900",
         sub: `Tahmini bekleme: ~${wait} dk`,
         subColor: "text-red-700",
@@ -230,7 +236,7 @@ export default function EmployeePage() {
         dotPulse: false,
         title: "Yonetici mesgul, sirada kimse yok",
         titleColor: "text-amber-800",
-        sub: "Kapiyi calabilirsiniz, uygun olunca doner",
+        sub: "Kapiyi calabilirsiniz ama calmamanizi tavsiye ederiz :)",
         subColor: "text-amber-600",
       };
       return {
@@ -450,21 +456,57 @@ export default function EmployeePage() {
                       </select>
                     </div>
 
-                    <Button
-                      onClick={knockDoor}
-                      disabled={bossStatus === "away"}
-                      className="w-full gap-2"
-                      size="lg"
-                    >
-                      {bossStatus === "away" ? (
-                        "Yonetici Uzakta"
-                      ) : (
-                        <>
-                          <Volume2 className="w-4 h-4" />
-                          Kapiyi Cal
-                        </>
-                      )}
-                    </Button>
+                    {/* In-meeting confirmation */}
+                    {showKnockConfirm && bossStatus === "in-meeting" && (
+                      <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 space-y-2">
+                        <p className="text-sm text-amber-800 font-medium">
+                          Gorusmede bir kisi var, calmak istediginize emin misiniz?
+                        </p>
+                        <div className="flex gap-2">
+                          <Button onClick={knockDoor} size="sm" className="flex-1 gap-1.5 bg-amber-600 hover:bg-amber-700">
+                            <Volume2 className="w-3.5 h-3.5" />
+                            Evet, Cal
+                          </Button>
+                          <Button onClick={() => setShowKnockConfirm(false)} size="sm" variant="outline" className="flex-1">
+                            Vazgec
+                          </Button>
+                        </div>
+                      </div>
+                    )}
+
+                    {!showKnockConfirm && (
+                      <Button
+                        onClick={knockDoor}
+                        disabled={bossStatus === "away"}
+                        className="w-full gap-2"
+                        size="lg"
+                      >
+                        {bossStatus === "away" ? (
+                          "Yonetici Uzakta"
+                        ) : (
+                          <>
+                            <Volume2 className="w-4 h-4" />
+                            Kapiyi Cal
+                          </>
+                        )}
+                      </Button>
+                    )}
+
+                    {/* Randevu Al - when busy or away */}
+                    {calComUrl && (bossStatus === "busy" || bossStatus === "away") && (
+                      <a
+                        href={calComUrl.startsWith("http") ? calComUrl : `https://${calComUrl}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block"
+                      >
+                        <Button variant="outline" className="w-full gap-2" size="lg">
+                          <CalendarPlus className="w-4 h-4" />
+                          Randevu Al
+                          <ExternalLink className="w-3.5 h-3.5 ml-auto opacity-50" />
+                        </Button>
+                      </a>
+                    )}
                   </div>
                 </CardContent>
               </Card>
@@ -530,6 +572,17 @@ export default function EmployeePage() {
                   <p className="text-xs text-muted-foreground mt-1">
                     Yoneticinin yanit vermesi bekleniyor...
                   </p>
+                  {queueInfo && (
+                    <div className="mt-3 inline-flex items-center gap-2 bg-secondary rounded-full px-3 py-1.5">
+                      <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                      <span className="text-xs font-medium text-foreground">
+                        Sirada {queueInfo.position}. siradasiniz
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        ({queueInfo.totalInQueue} kisi bekliyor)
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Chat */}
