@@ -521,6 +521,7 @@ export default function EmployeePage() {
               </Card>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
+              <div className="space-y-3">
               <Card>
                 <CardContent className="p-5 sm:p-6">
                   <div className="text-center mb-5 sm:mb-6">
@@ -647,6 +648,9 @@ export default function EmployeePage() {
                 </CardContent>
               </Card>
 
+              {renderQuiz(quiz1Data, q1Started, setQ1Started, q1Idx, setQ1Idx, q1Ans, setQ1Ans, q1Rev, setQ1Rev, q1Done, setQ1Done, "Yoneticiyi ne kadar taniyorsun?")}
+              </div>
+
               <div className="space-y-4">
                 <CalendarWidget />
 
@@ -675,8 +679,6 @@ export default function EmployeePage() {
                     </CardContent>
                   </Card>
                 )}
-
-                {renderQuiz(quiz1Data, q1Started, setQ1Started, q1Idx, setQ1Idx, q1Ans, setQ1Ans, q1Rev, setQ1Rev, q1Done, setQ1Done, "Yoneticiyi ne kadar taniyorsun?")}
               </div>
             </div>
             </div>
