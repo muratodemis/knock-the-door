@@ -95,6 +95,85 @@ export default function EmployeePage() {
     }, 1200);
   }, [quizQ, quizRevealed]);
 
+  const resetQuiz = useCallback(() => {
+    setQuizStarted(false); setQuizQ(0); setQuizAnswers([null,null,null,null,null]); setQuizRevealed([false,false,false,false,false]); setQuizDone(false);
+  }, []);
+
+  const renderQuiz = () => (
+    <Card className="mt-3">
+      <CardContent className="p-4 sm:p-5">
+        {!quizStarted ? (
+          <div className="text-center">
+            <p className="text-sm font-medium text-foreground mb-1">Yoneticiyi ne kadar taniyorsun?</p>
+            <p className="text-xs text-muted-foreground mb-3">5 soruluk kisa bir test!</p>
+            <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setQuizStarted(true)}>
+              <span>🧠</span> Teste Basla
+            </Button>
+          </div>
+        ) : quizDone ? (
+          <div className="text-center">
+            <div className="text-3xl font-bold text-foreground mb-1">{quizScore}/5</div>
+            <p className="text-sm font-medium text-foreground mb-1">
+              {quizScore === 5 ? "Mukemmel! Onu cok iyi taniyorsun!" : quizScore >= 3 ? "Fena degil, iyi taniyorsun!" : "Hmm, biraz daha tanisman lazim!"}
+            </p>
+            <div className="mt-3 space-y-1.5">
+              {quizData.map((qd, i) => (
+                <div key={i} className="flex items-center gap-2 text-xs">
+                  <span className={quizAnswers[i] === qd.correct ? "text-emerald-600" : "text-red-500"}>
+                    {quizAnswers[i] === qd.correct ? "✓" : "✗"}
+                  </span>
+                  <span className="text-muted-foreground">{qd.q}</span>
+                  <span className="font-medium text-foreground ml-auto">{qd.opts[qd.correct]}</span>
+                </div>
+              ))}
+            </div>
+            <Button size="sm" variant="ghost" className="mt-3 text-xs" onClick={resetQuiz}>
+              Tekrar Dene
+            </Button>
+          </div>
+        ) : (
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-[10px] text-muted-foreground font-medium tracking-wider">SORU {quizQ + 1}/5</span>
+              <div className="flex gap-1">
+                {[0,1,2,3,4].map(i => (
+                  <div key={i} className={cn("w-1.5 h-1.5 rounded-full", i < quizQ ? (quizAnswers[i] === quizData[i].correct ? "bg-emerald-500" : "bg-red-400") : i === quizQ ? "bg-foreground" : "bg-border")} />
+                ))}
+              </div>
+            </div>
+            <p className="text-sm font-medium text-foreground mb-3">{quizData[quizQ].q}</p>
+            <div className="space-y-1.5">
+              {quizData[quizQ].opts.map((opt, oi) => {
+                const revealed = quizRevealed[quizQ];
+                const selected = quizAnswers[quizQ] === oi;
+                const isCorrect = oi === quizData[quizQ].correct;
+                return (
+                  <button
+                    key={oi}
+                    onClick={() => answerQuiz(oi)}
+                    disabled={revealed}
+                    className={cn(
+                      "w-full text-left px-3 py-2 rounded-lg border text-sm transition-all",
+                      revealed && isCorrect && "border-emerald-400 bg-emerald-50 text-emerald-800",
+                      revealed && selected && !isCorrect && "border-red-300 bg-red-50 text-red-700",
+                      !revealed && "border-border hover:border-foreground/30 hover:bg-secondary text-foreground",
+                      revealed && !selected && !isCorrect && "opacity-50"
+                    )}
+                  >
+                    <span className="font-medium mr-2 text-muted-foreground">{String.fromCharCode(65 + oi)})</span>
+                    {opt}
+                    {revealed && isCorrect && <span className="float-right">✓</span>}
+                    {revealed && selected && !isCorrect && <span className="float-right">✗</span>}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   useEffect(() => {
     fetch(`${basePath}/api/calendar/calcom`)
       .then((r) => r.json())
@@ -566,6 +645,8 @@ export default function EmployeePage() {
                     </CardContent>
                   </Card>
                 )}
+
+                {renderQuiz()}
               </div>
             </div>
             </div>
@@ -671,79 +752,7 @@ export default function EmployeePage() {
               </CardContent>
             </Card>
 
-            {/* Quiz while waiting */}
-            <Card className="mt-3">
-              <CardContent className="p-4 sm:p-5">
-                {!quizStarted ? (
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-foreground mb-1">Beklerken eglenmek ister misin?</p>
-                    <p className="text-xs text-muted-foreground mb-3">Gorusecegn kisiyi ne kadar taniyorsun test et!</p>
-                    <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setQuizStarted(true)}>
-                      <span>🧠</span> Teste Basla
-                    </Button>
-                  </div>
-                ) : quizDone ? (
-                  <div className="text-center">
-                    <div className="text-3xl font-bold text-foreground mb-1">{quizScore}/5</div>
-                    <p className="text-sm font-medium text-foreground mb-1">
-                      {quizScore === 5 ? "Mukemmel! Onu cok iyi taniyorsun!" : quizScore >= 3 ? "Fena degil, iyi taniyorsun!" : "Hmm, biraz daha tanisman lazim!"}
-                    </p>
-                    <div className="mt-3 space-y-1.5">
-                      {quizData.map((qd, i) => (
-                        <div key={i} className="flex items-center gap-2 text-xs">
-                          <span className={quizAnswers[i] === qd.correct ? "text-emerald-600" : "text-red-500"}>
-                            {quizAnswers[i] === qd.correct ? "✓" : "✗"}
-                          </span>
-                          <span className="text-muted-foreground">{qd.q}</span>
-                          <span className="font-medium text-foreground ml-auto">{qd.opts[qd.correct]}</span>
-                        </div>
-                      ))}
-                    </div>
-                    <Button size="sm" variant="ghost" className="mt-3 text-xs" onClick={() => { setQuizStarted(false); setQuizQ(0); setQuizAnswers([null,null,null,null,null]); setQuizRevealed([false,false,false,false,false]); setQuizDone(false); }}>
-                      Tekrar Dene
-                    </Button>
-                  </div>
-                ) : (
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="text-[10px] text-muted-foreground font-medium tracking-wider">SORU {quizQ + 1}/5</span>
-                      <div className="flex gap-1">
-                        {[0,1,2,3,4].map(i => (
-                          <div key={i} className={cn("w-1.5 h-1.5 rounded-full", i < quizQ ? (quizAnswers[i] === quizData[i].correct ? "bg-emerald-500" : "bg-red-400") : i === quizQ ? "bg-foreground" : "bg-border")} />
-                        ))}
-                      </div>
-                    </div>
-                    <p className="text-sm font-medium text-foreground mb-3">{quizData[quizQ].q}</p>
-                    <div className="space-y-1.5">
-                      {quizData[quizQ].opts.map((opt, oi) => {
-                        const revealed = quizRevealed[quizQ];
-                        const selected = quizAnswers[quizQ] === oi;
-                        const isCorrect = oi === quizData[quizQ].correct;
-                        return (
-                          <button
-                            key={oi}
-                            onClick={() => answerQuiz(oi)}
-                            disabled={revealed}
-                            className={cn(
-                              "w-full text-left px-3 py-2 rounded-lg border text-sm transition-all",
-                              revealed && isCorrect && "border-emerald-400 bg-emerald-50 text-emerald-800",
-                              revealed && selected && !isCorrect && "border-red-300 bg-red-50 text-red-700",
-                              !revealed && "border-border hover:border-foreground/30 hover:bg-secondary text-foreground",
-                              revealed && !selected && !isCorrect && "opacity-50"
-                            )}
-                          >
-                            <span className="font-medium mr-2 text-muted-foreground">{String.fromCharCode(65 + oi)})</span>
-                            {opt}
-                            {revealed && isCorrect && <span className="float-right">✓</span>}
-                            {revealed && selected && !isCorrect && <span className="float-right">✗</span>}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            {renderQuiz()}
           </>)}
 
           {/* Accepted */}
