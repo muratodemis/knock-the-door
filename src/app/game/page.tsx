@@ -541,7 +541,7 @@ export default function GamePage(){
         </div>
       </nav>
       <div className="flex-1 flex flex-col items-center justify-start p-2 pt-1">
-        <canvas ref={canvasRef} width={CW} height={CH} onClick={handleCanvasClick} className="w-full border-2 border-[#3A3858] rounded-lg cursor-pointer shadow-2xl" style={{imageRendering:"pixelated",maxWidth:"1520px",aspectRatio:`${LW}/${LH}`}} tabIndex={0}/>
+        <canvas ref={canvasRef} width={CW} height={CH} onClick={handleCanvasClick} className="border-2 border-[#3A3858] rounded-lg cursor-pointer shadow-2xl" style={{imageRendering:"pixelated",width:"min(90vw, 960px)",aspectRatio:`${LW}/${LH}`}} tabIndex={0}/>
         {(knockState==="waiting"||knockState==="accepted")&&chatMessages.length>0&&(
           <div className="max-w-[960px] w-full mt-3 bg-[#1C1A28] border-2 border-[#3A3858] rounded-lg p-4"><div className="text-[#F0DCA0] font-mono text-xs mb-2 tracking-wider">SOHBET</div><div className="max-h-32 overflow-y-auto space-y-1.5 mb-3">{chatMessages.map((msg,i)=>(<div key={i} className={`font-mono text-xs ${msg.from==="boss"?"text-[#F0C030]":"text-[#6898E0]"}`}>{msg.from==="boss"?"Yonetici":"Siz"}: {msg.text}</div>))}</div><div className="flex gap-2"><input value={chatInput} onChange={e=>setChatInput(e.target.value)} onKeyDown={e=>e.key==="Enter"&&sendChat()} placeholder="Mesaj yaz..." className="flex-1 bg-[#12101C] border border-[#3A3858] rounded-lg px-3 py-2 text-[#E8E4F0] font-mono text-xs placeholder:text-[#444] focus:outline-none focus:border-[#5A5880]"/><button onClick={sendChat} className="bg-[#2A5A34] hover:bg-[#3A7A44] text-[#C8E8D0] font-mono text-xs px-4 py-2 rounded-lg border border-[#4A8A54]">Gonder</button></div></div>
         )}
